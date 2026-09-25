@@ -39,7 +39,8 @@ rin/
 │   │   │   ├── detection/       # Drona lifecycle & targeted DOM observer
 │   │   │   │   ├── lifecycle.ts # Drona meeting session gatekeeper
 │   │   │   │   ├── observer.ts  # Targeted MutationObserver (parent container only)
-│   │   │   │   └── extractor.ts # DOM -> QuizData normalizer
+│   │   │   │   ├── extractor.ts # DOM -> QuizData normalizer
+│   │   │   │   └── recorder.ts  # [DEV-ONLY] DOM snapshot & freeze capture tool
 │   │   │   ├── actors/          # Execution handlers
 │   │   │   │   ├── hud-actor.ts # Default: Soft background highlight (#e8d5f5)
 │   │   │   │   └── click-actor.ts# Optional: Synthetic pointer click dispatcher
@@ -276,21 +277,35 @@ export interface Actor {
 
 ---
 
-## 8. Offline Benchmark & Calibration Tool (`tools/benchmark.ts`)
+## 8. Development & Calibration Tools
+
+### 8.1 Offline Benchmark & Calibration Tool (`tools/benchmark.ts`)
 
 A standalone Node.js CLI tool (`tools/benchmark.ts`) executes outside the extension bundle to benchmark candidate models against the 17 verified test fixtures in `test-fixtures/`:
 
-### Candidate Models Evaluated
+#### Candidate Models Evaluated
 1. **TypeSafe AI Jev (`jev-latest`)**: Low-latency System 1 classification using typed `choice` criteria.
 2. **Google Gemini 2.5 Flash**: Zero-shot high-speed multimodal LLM.
 3. **DeepSeek / OpenAI GPT-4o-mini**: Fast reasoning/comprehension alternatives.
 
-### Evaluation Criteria
+#### Evaluation Criteria
 - **Accuracy**: Percentage of correct answers on Scaler quizzes.
 - **Decision Latency**: Target $< 500\text{ms}$ overall.
 - **Stability**: Zero unhandled exceptions or malformed output formats.
 
 The winning model from the benchmark is deployed as the single production engine in `packages/worker/src/index.ts`.
+
+### 8.2 In-Browser DOM Snapshot Recorder (`recorder.ts`)
+
+During development, verifying whether live Drona meeting quizzes have any subtle DOM differences from recorded class replays is critical. Rin includes a dedicated development recorder (`packages/extension/src/detection/recorder.ts`):
+
+- **Activation**: Conditionally bundled and initialized only during development (`if (import.meta.env.DEV)`). In production builds (`pnpm build`), Vite evaluates the flag to `false` and dead-code-eliminates the recorder entirely.
+- **Trigger**: Automatically on quiz detection or manually via a developer hotkey (`Ctrl+Shift+S`).
+- **Functionality**:
+  1. Grabs the full `outerHTML` of `.m-quiz` and its parent `.vp-container`.
+  2. Saves the snapshot with timestamp and current URL into `browser.storage.local`.
+  3. Outputs the clean HTML string directly to the DevTools console and triggers a single-click download of `quiz-snapshot-<timestamp>.html`.
+- **Purpose**: Enables immediate, stress-free capture of real live class quizzes in the 30-second window for post-class selector verification and fixture generation.
 
 ---
 
