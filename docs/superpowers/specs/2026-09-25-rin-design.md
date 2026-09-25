@@ -86,38 +86,39 @@ rin/
 
 ## 3. Strict Drona Meeting Lifecycle & Targeted Observation
 
-### 3.1 Ephemeral Lifecycle Handover
-Scaler.com is built with React. In a live video classroom, frequent UI updates (chat messages, attendee join/leave events, video telemetry, seek bars) trigger hundreds of reconciliations across the global document.
+### 3.1 Complementary Observer State Machine
+Scaler.com is a React Single-Page Application (SPA). Navigations between the dashboard, course directory, and live classrooms happen via client-side routing (`history.pushState`) without full page reloads.
 
-To avoid polling while completely eliminating long-term `document.body` observation noise, Rin employs a **Two-Stage Reactive Observer Handover**:
+To be route-agnostic while eliminating DOM observation overhead, Rin implements a **Mutually Exclusive, Complementary State Machine**: exactly **one** MutationObserver is active at any time.
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│ Stage 1: Ephemeral Meeting Watcher (MutationObserver)       │
-│ - Fast path: Checks document.querySelector(.vp-container).  │
-│ - If not found: Mounts a temporary MutationObserver on root │
-│ - The EXACT microtask React inserts .vp-container:          │
-│     ▶ DISCONNECTS Stage 1 observer immediately              │
-│     ▶ Hands container node to Stage 2                       │
-│ - Zero polling, zero ongoing document.body overhead         │
-└──────────────────────────────┬──────────────────────────────┘
-                               │
-                               ▼ When .vp-container is mounted
-┌─────────────────────────────────────────────────────────────┐
-│ Stage 2: Targeted Quiz Observer                             │
-│ - Attaches ONLY to .vp-container (the quiz's true parent)   │
-│ - Options: { childList: true, subtree: false }              │
-│ - Detects immediate insertion of div.m-quiz                 │
-│ - Zero React background re-render noise                     │
-│ - Disconnects and re-arms Stage 1 if container unmounts    │
-└─────────────────────────────────────────────────────────────┘
+                  ┌───────────────────────────────┐
+                  │ State A: MEETING_SEARCH       │
+                  │ - Attached to: #root          │
+                  │ - Watching for: .vp-container │
+                  │ - Quiz Observer: INACTIVE     │
+                  └──────────────┬────────────────┘
+                                 │
+                                 │ React mounts .vp-container
+                                 ▼ (Handover: Disconnect Meeting Observer)
+                  ┌───────────────────────────────┐
+                  │ State B: QUIZ_MONITOR         │
+                  │ - Attached to: .vp-container  │
+                  │ - Watching for: div.m-quiz    │
+                  │ - Meeting Observer: INACTIVE  │
+                  └──────────────┬────────────────┘
+                                 │
+                                 │ .vp-container unmounts (leave class)
+                                 ▼ (Teardown: Disconnect Quiz Observer)
+                  Return to State A: MEETING_SEARCH
 ```
 
 ### 3.2 Drona Session Gatekeeper (`lifecycle.ts`)
-1. **Route Filter**: Manifest content scripts match `https://*.scaler.com/*`. The script first verifies the path belongs to a classroom/meeting session.
-2. **Fast-Path Check**: If `.vp-container` is already present (e.g. hard reload during class), Stage 2 activates immediately.
-3. **Reactive Mount Detection**: If not present, a temporary `MutationObserver` watches for element insertions. As soon as `.vp-container` appears, it unregisters itself and delegates to the targeted quiz observer.
-4. **Teardown & Re-Arm**: If the student leaves the class and `.vp-container` is removed from the DOM, the Stage 2 quiz observer cleans up and re-arms Stage 1.
+1. **Route-Agnostic Operation**: No fragile URL path filters or regexes. Because `#root` is the permanent React root element across the entire Scaler SPA, watching `#root` for `.vp-container` reliably catches live classes, masterclasses, and recorded archives regardless of how the user navigated there.
+2. **Fast-Path Check**: When the content script loads, it immediately queries `#root` for `.vp-container`. If already present (e.g. hard reload during an ongoing class), it jumps directly to State B (`QUIZ_MONITOR`).
+3. **Reactive Stage 1 Watcher**: If `.vp-container` is not present, an observer attaches directly to `document.getElementById('root')` with `{ childList: true, subtree: true }`. The exact microtask React renders `.vp-container`, this observer **immediately disconnects itself** and transitions to State B.
+4. **Targeted Stage 2 Watcher**: Stage 2 attaches strictly to `.vp-container` with `{ childList: true, subtree: false }`. It observes only direct children of the video player, listening specifically for `div.m-quiz` with zero noise from React chat, participant lists, or controls.
+5. **Teardown & Re-Arm**: If the student leaves the class and `.vp-container` is removed from the DOM, the Stage 2 quiz observer cleans up and re-arms State 1 to await the next class.
 
 ---
 
@@ -129,6 +130,10 @@ To ensure Rin is immune to breaking updates and that future DOM schema tweaks re
 // packages/extension/src/config/selectors.ts
 
 export const SELECTORS = {
+  app: {
+    /** The permanent React application root container for the Scaler SPA */
+    root: '#root',
+  },
   meeting: {
     /** The parent video player container hosting the meeting and overlays */
     container: '.vp-container',
