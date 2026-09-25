@@ -15,7 +15,7 @@ describe('Actor Implementations', () => {
 
   beforeEach(() => {
     dom = new JSDOM(
-      '<!DOCTYPE html><html><body><a class="choice" style="background-color: rgb(255, 255, 255);"></a><a class="choice" style="background-color: rgb(200, 200, 200);"></a></body></html>'
+      '<!DOCTYPE html><html><body><a class="choice" style="background-color: rgb(255, 255, 255); transition: opacity 0.2s ease;"></a><a class="choice" style="background-color: rgb(200, 200, 200); transition: transform 0.3s ease;"></a></body></html>'
     );
     document = dom.window.document;
     const choices = document.querySelectorAll('a.choice');
@@ -63,12 +63,24 @@ describe('Actor Implementations', () => {
 
       actor.cleanup();
       expect(mockOption.style.backgroundColor).toBe('rgb(255, 255, 255)');
+      expect(mockOption.style.transition).toBe('opacity 0.2s ease');
+    });
+
+    it('restores empty transition if element had no initial transition style', async () => {
+      mockOption.style.transition = '';
+      const actor = new HudActor();
+      await actor.act({ quiz: mockQuiz, result: mockResult });
+      expect(mockOption.style.transition).toBe('background-color 0.25s ease-in-out');
+
+      actor.cleanup();
+      expect(mockOption.style.transition).toBe('');
     });
 
     it('cleans up previous highlight when act is called again', async () => {
       const actor = new HudActor();
       await actor.act({ quiz: mockQuiz, result: mockResult });
       expect(mockOption.style.backgroundColor).toBe('rgb(232, 213, 245)');
+      expect(mockOption.style.transition).toBe('background-color 0.25s ease-in-out');
 
       const secondResult: SolveResult = {
         ...mockResult,
@@ -78,10 +90,13 @@ describe('Actor Implementations', () => {
       await actor.act({ quiz: mockQuiz, result: secondResult });
 
       expect(mockOption.style.backgroundColor).toBe('rgb(255, 255, 255)');
+      expect(mockOption.style.transition).toBe('opacity 0.2s ease');
       expect(mockOption2.style.backgroundColor).toBe('rgb(232, 213, 245)');
+      expect(mockOption2.style.transition).toBe('background-color 0.25s ease-in-out');
 
       actor.cleanup();
       expect(mockOption2.style.backgroundColor).toBe('rgb(200, 200, 200)');
+      expect(mockOption2.style.transition).toBe('transform 0.3s ease');
     });
 
     it('cleanup is safe to call multiple times', async () => {
@@ -90,6 +105,7 @@ describe('Actor Implementations', () => {
       actor.cleanup();
       expect(() => actor.cleanup()).not.toThrow();
       expect(mockOption.style.backgroundColor).toBe('rgb(255, 255, 255)');
+      expect(mockOption.style.transition).toBe('opacity 0.2s ease');
     });
 
     it('handles invalid chosenIndex gracefully without crashing', async () => {

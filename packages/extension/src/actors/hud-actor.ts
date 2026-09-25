@@ -4,6 +4,7 @@ export class HudActor implements Actor {
   readonly mode: ActorMode = 'assisted';
   private highlightedElement: HTMLElement | null = null;
   private originalBackground: string = '';
+  private originalTransition: string = '';
 
   async act(payload: ActPayload): Promise<void> {
     this.cleanup();
@@ -13,6 +14,7 @@ export class HudActor implements Actor {
 
     this.highlightedElement = target;
     this.originalBackground = target.style.backgroundColor;
+    this.originalTransition = target.style.transition;
 
     // Light purple #e8d5f5 soft highlight
     target.style.backgroundColor = '#e8d5f5';
@@ -22,7 +24,11 @@ export class HudActor implements Actor {
   cleanup(): void {
     if (this.highlightedElement) {
       this.highlightedElement.style.backgroundColor = this.originalBackground;
+      this.highlightedElement.style.transition = this.originalTransition;
       this.highlightedElement = null;
+      this.originalBackground = '';
+      this.originalTransition = '';
     }
   }
 }
+
