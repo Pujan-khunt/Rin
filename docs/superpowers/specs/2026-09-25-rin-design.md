@@ -86,35 +86,38 @@ rin/
 
 ## 3. Strict Drona Meeting Lifecycle & Targeted Observation
 
-### 3.1 Avoiding `document.body` Noise
+### 3.1 Ephemeral Lifecycle Handover
 Scaler.com is built with React. In a live video classroom, frequent UI updates (chat messages, attendee join/leave events, video telemetry, seek bars) trigger hundreds of reconciliations across the global document.
 
-**Rin strictly rejects observing `document.body`**. Instead, it uses a two-phase lifecycle:
+To avoid polling while completely eliminating long-term `document.body` observation noise, Rin employs a **Two-Stage Reactive Observer Handover**:
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ Phase 1: Lifecycle Gate (Drona Meeting Watcher)             │
-│ - URL check: Matches scaler.com classroom/meeting paths     │
-│ - Inactive during general site navigation                   │
-│ - Detects presence of video player root: .vp-container      │
+│ Stage 1: Ephemeral Meeting Watcher (MutationObserver)       │
+│ - Fast path: Checks document.querySelector(.vp-container).  │
+│ - If not found: Mounts a temporary MutationObserver on root │
+│ - The EXACT microtask React inserts .vp-container:          │
+│     ▶ DISCONNECTS Stage 1 observer immediately              │
+│     ▶ Hands container node to Stage 2                       │
+│ - Zero polling, zero ongoing document.body overhead         │
 └──────────────────────────────┬──────────────────────────────┘
                                │
                                ▼ When .vp-container is mounted
 ┌─────────────────────────────────────────────────────────────┐
-│ Phase 2: Targeted MutationObserver                          │
+│ Stage 2: Targeted Quiz Observer                             │
 │ - Attaches ONLY to .vp-container (the quiz's true parent)   │
 │ - Options: { childList: true, subtree: false }              │
 │ - Detects immediate insertion of div.m-quiz                 │
 │ - Zero React background re-render noise                     │
+│ - Disconnects and re-arms Stage 1 if container unmounts    │
 └─────────────────────────────────────────────────────────────┘
 ```
 
 ### 3.2 Drona Session Gatekeeper (`lifecycle.ts`)
-The extension content script will:
-1. Verify the current URL corresponds to a live class or recorded session (e.g. `scaler.com/mentor/class/*`, `scaler.com/classroom/*`).
-2. Search for the root meeting/player container (`SELECTORS.meeting.container`).
-3. If not yet mounted (e.g. initial React boot), register a lightweight one-time observer or poll until the meeting container is ready.
-4. Once the meeting container is confirmed, activate the targeted quiz observer and clean up the boot watcher.
+1. **Route Filter**: Manifest content scripts match `https://*.scaler.com/*`. The script first verifies the path belongs to a classroom/meeting session.
+2. **Fast-Path Check**: If `.vp-container` is already present (e.g. hard reload during class), Stage 2 activates immediately.
+3. **Reactive Mount Detection**: If not present, a temporary `MutationObserver` watches for element insertions. As soon as `.vp-container` appears, it unregisters itself and delegates to the targeted quiz observer.
+4. **Teardown & Re-Arm**: If the student leaves the class and `.vp-container` is removed from the DOM, the Stage 2 quiz observer cleans up and re-arms Stage 1.
 
 ---
 
