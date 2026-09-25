@@ -1,0 +1,17 @@
+{
+  "name": "rin-monorepo",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "test": "vitest run",
+    "build": "pnpm -r run build",
+    "typecheck": "pnpm -r run typecheck"
+  },
+  "devDependencies": {
+    "typescript": "^5.5.4",
+    "vitest": "^2.0.5",
+    "jsdom": "^25.0.0",
+    "@types/jsdom": "^21.1.7",
+    "@types/node": "^22.5.5"
+  }
+}
