@@ -1,0 +1,10 @@
+node_modules/
+.output/
+.wxt/
+dist/
+*.log
+.dev.vars
+.wrangler/
+.superpowers/
+docs/superpowers/plans/*
+!docs/superpowers/plans/.gitkeep
