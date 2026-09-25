@@ -3,7 +3,8 @@
   "compilerOptions": {
     "rootDir": ".",
     "outDir": ".output",
+    "declaration": false,
     "jsx": "react-jsx"
   },
-  "include": ["src/**/*", "tests/**/*"]
+  "include": ["src/**/*", "tests/**/*", ".wxt/wxt.d.ts"]
 }
