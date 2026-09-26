@@ -10,6 +10,7 @@ export default defineConfig({
     host_permissions: [
       'https://*.scaler.com/*',
       'https://scaler.com/*',
+      'https://rin-solver.pujankhunt2412.workers.dev/*',
     ],
     action: {
       default_title: 'Rin Settings',

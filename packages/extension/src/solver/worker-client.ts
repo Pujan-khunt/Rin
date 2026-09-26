@@ -1,9 +1,9 @@
 import type { QuizInput, SolveResult } from '@rin/shared';
 
-export const DEFAULT_WORKER_URL = 'https://rin-solver.workers.dev/solve';
+export const DEFAULT_WORKER_URL = 'https://rin-solver.pujankhunt2412.workers.dev/solve';
 
 export class WorkerClient {
-  constructor(private readonly workerUrl: string = DEFAULT_WORKER_URL) {}
+  constructor(private readonly workerUrl: string = DEFAULT_WORKER_URL) { }
 
   async solve(input: QuizInput): Promise<SolveResult> {
     const response = await fetch(this.workerUrl, {
