@@ -11,11 +11,16 @@ function extractQuestion(root: HTMLElement): string | null {
   const questionEl = root.querySelector<HTMLElement>(SELECTORS.quiz.questionMarkdown);
   if (!questionEl) return null;
 
-  const paragraphNodes = questionEl.querySelectorAll<HTMLElement>('p');
+  const children = Array.from(questionEl.children);
   const question =
-    paragraphNodes.length > 0
-      ? Array.from(paragraphNodes)
-          .map((p) => normalizeText(p.textContent))
+    children.length > 0
+      ? children
+          .map((child) => {
+            if (child.tagName === 'PRE' || child.querySelector('pre')) {
+              return child.textContent?.trim() ?? '';
+            }
+            return normalizeText(child.textContent);
+          })
           .filter(Boolean)
           .join('\n')
       : normalizeText(questionEl.textContent);
