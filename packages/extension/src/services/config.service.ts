@@ -41,14 +41,10 @@ export class ConfigService {
       }
     };
 
-    if (typeof browser !== 'undefined' && browser.storage?.onChanged?.addListener) {
-      browser.storage.onChanged.addListener(storageHandler);
-    }
+    browser.storage.onChanged.addListener(storageHandler);
 
     return () => {
-      if (typeof browser !== 'undefined' && browser.storage?.onChanged?.removeListener) {
-        browser.storage.onChanged.removeListener(storageHandler);
-      }
+      browser.storage.onChanged.removeListener(storageHandler);
     };
   }
 }

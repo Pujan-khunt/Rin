@@ -16,6 +16,16 @@ describe('Background Entrypoint', () => {
   beforeEach(() => {
     vi.restoreAllMocks();
     (global as any).browser = {
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({}),
+          set: vi.fn().mockResolvedValue(undefined),
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
       runtime: {
         onMessage: {
           addListener: vi.fn((listener) => {
@@ -137,6 +147,22 @@ describe('Drona Content Script Entrypoint', () => {
       onInvalidated: vi.fn((cb) => {
         invalidatedCallbacks.push(cb);
       }),
+    };
+
+    (global as any).browser = {
+      storage: {
+        local: {
+          get: vi.fn().mockResolvedValue({}),
+          set: vi.fn().mockResolvedValue(undefined),
+        },
+        onChanged: {
+          addListener: vi.fn(),
+          removeListener: vi.fn(),
+        },
+      },
+      runtime: {
+        sendMessage: vi.fn().mockResolvedValue({ success: true }),
+      },
     };
   });
 

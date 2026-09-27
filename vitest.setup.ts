@@ -7,6 +7,11 @@ import { vi } from 'vitest';
       get: vi.fn().mockResolvedValue({}),
       set: vi.fn().mockResolvedValue(undefined),
     },
+    onChanged: {
+      addListener: vi.fn(),
+      removeListener: vi.fn(),
+      hasListener: vi.fn(),
+    },
   },
   runtime: {
     sendMessage: vi.fn().mockResolvedValue({ success: true }),
