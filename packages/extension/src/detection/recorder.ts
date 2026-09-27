@@ -26,12 +26,8 @@ export async function recordQuizSnapshot(quiz: QuizData): Promise<QuizSnapshot> 
       snapshots.unshift(snapshot);
       await browser.storage.local.set({ rinSnapshots: snapshots });
     }
-  } catch (err) {
-    console.error('[Rin Recorder] Failed to persist snapshot:', err);
-  }
-
-  if (typeof console !== 'undefined' && console.info) {
-    console.info(`[Rin Recorder] Captured quiz snapshot (${snapshot.id}):`, snapshot.question);
+  } catch {
+    // Graceful error handling in dev-only snapshot recorder
   }
 
   return snapshot;

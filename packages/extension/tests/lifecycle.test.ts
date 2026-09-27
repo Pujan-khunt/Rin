@@ -63,8 +63,7 @@ describe('Drona Lifecycle & Targeted Observer', () => {
     expect(onReady).toHaveBeenCalledWith(vp);
   });
 
-  it('handles missing root gracefully with a warning', () => {
-    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+  it('handles missing root gracefully', () => {
     const onReady = vi.fn();
     const cleanup = waitForMeeting(onReady, null);
 
@@ -74,10 +73,8 @@ describe('Drona Lifecycle & Targeted Observer', () => {
     global.document = noRootDom.window.document;
     waitForMeeting(onReady);
 
-    expect(warnSpy).toHaveBeenCalledWith('[Rin] Root element not found.');
     expect(onReady).not.toHaveBeenCalled();
     cleanup();
-    warnSpy.mockRestore();
   });
 
   it('does not trigger onReady if disconnected before container is added', async () => {

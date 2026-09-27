@@ -46,11 +46,8 @@ export class QuizWorkflowCoordinator {
 
   async processQuiz(quiz: QuizData): Promise<void> {
     if (!this.config.enabled) {
-      console.info('[Rin] Quiz detected, but Rin is disabled in settings.');
       return;
     }
-
-    console.info('[Rin] Quiz detected!', quiz.question, `(${quiz.options.length} options)`);
 
     // Dev-only snapshot record
     if (import.meta.env.DEV) {
@@ -58,20 +55,16 @@ export class QuizWorkflowCoordinator {
     }
 
     try {
-      console.info('[Rin] Requesting solution from background service worker...');
       const res = await this.solver({
         type: 'SOLVE_QUIZ',
         payload: { question: quiz.question, options: quiz.options },
       });
 
       if (res.type === 'QUIZ_SOLVED' && this.config.enabled) {
-        console.info(`[Rin] Solved! Choice: ${res.payload.chosenLabel} (index ${res.payload.chosenIndex}) in ${res.payload.latencyMs}ms`);
         await this.actor.act({ quiz, result: res.payload });
-      } else if (res.type === 'ERROR') {
-        console.error('[Rin] Background solver error:', res.payload.message);
       }
-    } catch (err) {
-      console.error('[Rin] Failed to solve quiz:', err);
+    } catch {
+      // Graceful silence in content script to prevent host page leakage
     }
   }
 

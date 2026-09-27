@@ -19,7 +19,6 @@ export function waitForMeeting(
         (typeof document !== 'undefined' ? document.body : null));
 
   if (!root) {
-    console.warn('[Rin] Root element not found.');
     return () => {};
   }
 
