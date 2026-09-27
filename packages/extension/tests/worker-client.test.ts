@@ -66,4 +66,19 @@ describe('Extension WorkerClient', () => {
       })
     ).rejects.toThrow('Worker returned HTTP 500');
   });
+
+  it('passes AbortSignal to fetch and rejects on timeout', async () => {
+    global.fetch = vi.fn().mockImplementation((_url, init) => {
+      expect(init.signal).toBeInstanceOf(AbortSignal);
+      return Promise.reject(new DOMException('The operation was aborted due to timeout', 'TimeoutError'));
+    });
+
+    const client = new WorkerClient(DEFAULT_WORKER_URL, 5000);
+    await expect(
+      client.solve({
+        question: 'Timeout test',
+        options: [{ label: 'A', text: '1' }],
+      })
+    ).rejects.toThrow('The operation was aborted due to timeout');
+  });
 });
