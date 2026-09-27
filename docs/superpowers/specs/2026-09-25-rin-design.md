@@ -267,7 +267,7 @@ export interface Actor {
 - **No Embedded Client Secrets**: The browser extension bundle contains zero AI API tokens.
 - **Free-Tier Limits**: Runs on Cloudflare Workers (100,000 requests/day, 10ms CPU allowance).
 - **Execution Cost**: Routing and forwarding consumes $\approx 0.5\text{ms}$ CPU time; network waiting for AI inference does not count toward CPU quota.
-- **Secrets Management**: Credentials (`JEV_API_KEY`, `GEMINI_API_KEY`) are stored via encrypted Cloudflare Secrets (`wrangler secret put`).
+- **Secrets Management**: Credentials (`OPENROUTER_API_KEY`) are stored via encrypted Cloudflare Secrets (`wrangler secret put OPENROUTER_API_KEY`).
 
 ### 7.2 Endpoint Definition
 - `POST /solve`
