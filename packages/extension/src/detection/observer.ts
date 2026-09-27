@@ -15,7 +15,7 @@ function waitForQuizHydration(
   const initialData = extractQuiz(quizEl);
   if (initialData) {
     onHydrated(initialData);
-    return () => { };
+    return () => {};
   }
 
   // Reactive path: Shell is mounted, wait for markdown/choices to hydrate
@@ -60,7 +60,6 @@ export function startQuizObserver(
     selector: SELECTORS.quiz.root,
     subtree: false,
     once: false,
-    // Once we find `div.m-quiz` we wait for the question and options to get hydrated before firing `onQuiz`.
     onFound: (quizEl) => {
       stopHydration?.();
       stopHydration = waitForQuizHydration(quizEl, onQuiz);

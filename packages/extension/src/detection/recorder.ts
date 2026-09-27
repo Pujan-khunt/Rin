@@ -9,7 +9,6 @@ export interface QuizSnapshot {
   rawHtml: string;
 }
 
-
 export async function recordQuizSnapshot(quiz: QuizData): Promise<QuizSnapshot> {
   const snapshot: QuizSnapshot = {
     id: `snapshot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -21,11 +20,12 @@ export async function recordQuizSnapshot(quiz: QuizData): Promise<QuizSnapshot> 
   };
 
   try {
-    const stored = await browser.storage.local.get('rinSnapshots');
-    const snapshots: QuizSnapshot[] = Array.isArray(stored?.rinSnapshots) ? stored.rinSnapshots : [];
-    snapshots.unshift(snapshot);
-    // Store all snapshots without artificial capping for developer inspection
-    await browser.storage.local.set({ rinSnapshots: snapshots });
+    if (typeof browser !== 'undefined' && browser.storage?.local) {
+      const stored = await browser.storage.local.get('rinSnapshots');
+      const snapshots: QuizSnapshot[] = Array.isArray(stored?.rinSnapshots) ? stored.rinSnapshots : [];
+      snapshots.unshift(snapshot);
+      await browser.storage.local.set({ rinSnapshots: snapshots });
+    }
   } catch (err) {
     console.error('[Rin Recorder] Failed to persist snapshot:', err);
   }
