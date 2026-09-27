@@ -12,12 +12,13 @@ export function waitForMeeting(
   onReady: (container: HTMLElement) => void,
   rootElement?: HTMLElement | null
 ): () => void {
-  const root = rootElement !== undefined
-    ? rootElement
-    : (document.querySelector<HTMLElement>(SELECTORS.app.root) ?? (typeof document !== 'undefined' ? document.body : null));
+  const root =
+    rootElement !== undefined
+      ? rootElement
+      : (document.querySelector<HTMLElement>(SELECTORS.app.root) ??
+        (typeof document !== 'undefined' ? document.body : null));
 
   if (!root) {
-    console.warn('[Rin] Root element not found.');
     return () => {};
   }
 
@@ -37,10 +38,7 @@ export function waitForMeeting(
  * When the meeting container is detached/removed (e.g. user leaves the lecture or
  * SPA routes away), invokes onLeave and cleanly disconnects itself.
  */
-export function watchMeetingUnmount(
-  container: HTMLElement,
-  onLeave: () => void
-): () => void {
+export function watchMeetingUnmount(container: HTMLElement, onLeave: () => void): () => void {
   const parent = container.parentElement ?? (container.parentNode as HTMLElement | null);
   if (!parent) {
     if (!container.isConnected) {

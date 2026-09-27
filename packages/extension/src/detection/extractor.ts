@@ -3,6 +3,50 @@ import { findSelfOrDescendant } from '../utils/dom';
 import type { QuizData } from '../interfaces/quiz';
 import type { QuizOption } from '@rin/shared';
 
+function normalizeText(text: string | null | undefined): string {
+  return text?.replace(/\s+/g, ' ').trim() ?? '';
+}
+
+function extractQuestion(root: HTMLElement): string | null {
+  const questionEl = root.querySelector<HTMLElement>(SELECTORS.quiz.questionMarkdown);
+  if (!questionEl) return null;
+
+  const paragraphNodes = questionEl.querySelectorAll<HTMLElement>('p');
+  const question =
+    paragraphNodes.length > 0
+      ? Array.from(paragraphNodes)
+          .map((p) => normalizeText(p.textContent))
+          .filter(Boolean)
+          .join('\n')
+      : normalizeText(questionEl.textContent);
+
+  return question || null;
+}
+
+function extractOptions(
+  root: HTMLElement
+): { options: QuizOption[]; optionElements: HTMLElement[] } | null {
+  const choiceNodes = root.querySelectorAll<HTMLElement>(SELECTORS.quiz.choiceItem);
+  if (choiceNodes.length === 0) return null;
+
+  const options: QuizOption[] = [];
+  const optionElements: HTMLElement[] = [];
+
+  choiceNodes.forEach((node, index) => {
+    const rawLabel = node.querySelector(SELECTORS.quiz.choiceLabel)?.textContent?.trim();
+    const label = rawLabel || String.fromCharCode(65 + index);
+    const text = normalizeText(node.querySelector(SELECTORS.quiz.choiceText)?.textContent);
+
+    options.push({ label, text, index });
+    optionElements.push(node);
+  });
+
+  // Fail-fast: If options are completely empty of text, they haven't finished hydrating yet
+  if (options.every((opt) => !opt.text)) return null;
+
+  return { options, optionElements };
+}
+
 /**
  * Extracts quiz questions, options, and container references from a quiz DOM node.
  * Returns null if the element is not a quiz, has no options, or has empty question text.
@@ -11,39 +55,16 @@ export function extractQuiz(container: HTMLElement): QuizData | null {
   const root = findSelfOrDescendant(container, SELECTORS.quiz.root);
   if (!root) return null;
 
-  const questionEl = root.querySelector<HTMLElement>(SELECTORS.quiz.questionMarkdown);
-  const choiceNodes = root.querySelectorAll<HTMLElement>(SELECTORS.quiz.choiceItem);
-
-  if (!questionEl || choiceNodes.length === 0) return null;
-
-  const paragraphNodes = questionEl.querySelectorAll<HTMLElement>('p');
-  const question = paragraphNodes.length > 0
-    ? Array.from(paragraphNodes)
-        .map((p) => p.textContent?.replace(/\s+/g, ' ').trim())
-        .filter(Boolean)
-        .join('\n')
-    : questionEl.textContent?.replace(/\s+/g, ' ').trim();
-
-  // Fail-fast: Empty or unrendered question text indicates an invalid/unhydrated quiz state
+  const question = extractQuestion(root);
   if (!question) return null;
 
-  const options: QuizOption[] = [];
-  const optionElements: HTMLElement[] = [];
-
-  choiceNodes.forEach((node, index) => {
-    const label = node.querySelector(SELECTORS.quiz.choiceLabel)?.textContent?.trim() ?? String.fromCharCode(65 + index);
-    const text = node.querySelector(SELECTORS.quiz.choiceText)?.textContent?.replace(/\s+/g, ' ').trim() ?? '';
-    options.push({ label, text, index });
-    optionElements.push(node);
-  });
-
-  // Fail-fast: If options are completely empty of text, they haven't finished hydrating yet
-  if (options.every((opt) => !opt.text)) return null;
+  const parsedOptions = extractOptions(root);
+  if (!parsedOptions) return null;
 
   return {
     question,
-    options,
-    optionElements,
+    options: parsedOptions.options,
+    optionElements: parsedOptions.optionElements,
     containerElement: root,
     rawHtml: root.outerHTML,
     detectedAt: performance.now(),
