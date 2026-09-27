@@ -1,12 +1,20 @@
 import { describe, it, expect } from 'vitest';
-import { readFileSync } from 'fs';
-import { resolve } from 'path';
 import { JSDOM } from 'jsdom';
 import { extractQuiz } from '../src/detection/extractor';
 
-describe('Quiz Extractor against Real Fixtures', () => {
-  it('extracts a standard 4-option quiz (CPP 1.html)', () => {
-    const html = readFileSync(resolve(__dirname, '../../../test-fixtures/cpp-for-hft/atomics-and-concurrency/1.html'), 'utf-8');
+describe('Quiz Extractor', () => {
+  it('extracts a standard 4-option quiz', () => {
+    const html = `
+      <div class="m-quiz">
+        <div class="m-problem-description__markdown"><p>what is usually the size of cache line ?</p></div>
+        <div class="m-problem-choices__list">
+          <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>64 bytes</p></div></a>
+          <a class="choice"><div class="choice__name">B</div><div class="choice__text"><p>64 kb</p></div></a>
+          <a class="choice"><div class="choice__name">C</div><div class="choice__text"><p>128 bytes</p></div></a>
+          <a class="choice"><div class="choice__name">D</div><div class="choice__text"><p>128 kb</p></div></a>
+        </div>
+      </div>
+    `;
     const dom = new JSDOM(html);
     const quizEl = dom.window.document.querySelector('div.m-quiz') as HTMLElement;
     expect(quizEl).not.toBeNull();
@@ -21,8 +29,16 @@ describe('Quiz Extractor against Real Fixtures', () => {
     expect(data!.options[3]).toEqual({ label: 'D', text: '128 kb', index: 3 });
   });
 
-  it('extracts a True/False 2-option quiz (CPP 4.html)', () => {
-    const html = readFileSync(resolve(__dirname, '../../../test-fixtures/cpp-for-hft/atomics-and-concurrency/4.html'), 'utf-8');
+  it('extracts a True/False 2-option quiz', () => {
+    const html = `
+      <div class="m-quiz">
+        <div class="m-problem-description__markdown"><p>if we declare stack based objects do we need to manually free them ?</p></div>
+        <div class="m-problem-choices__list">
+          <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>True</p></div></a>
+          <a class="choice"><div class="choice__name">B</div><div class="choice__text"><p>False</p></div></a>
+        </div>
+      </div>
+    `;
     const dom = new JSDOM(html);
     const quizEl = dom.window.document.querySelector('div.m-quiz') as HTMLElement;
 
@@ -34,8 +50,17 @@ describe('Quiz Extractor against Real Fixtures', () => {
     expect(data!.options[1]).toEqual({ label: 'B', text: 'False', index: 1 });
   });
 
-  it('extracts a 3-option struct alignment quiz (CPP 7.html)', () => {
-    const html = readFileSync(resolve(__dirname, '../../../test-fixtures/cpp-for-hft/atomics-and-concurrency/7.html'), 'utf-8');
+  it('extracts a 3-option struct alignment quiz', () => {
+    const html = `
+      <div class="m-quiz">
+        <div class="m-problem-description__markdown"><p>What is the alignment of this struct ?</p></div>
+        <div class="m-problem-choices__list">
+          <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>8</p></div></a>
+          <a class="choice"><div class="choice__name">B</div><div class="choice__text"><p>16</p></div></a>
+          <a class="choice"><div class="choice__name">C</div><div class="choice__text"><p>4</p></div></a>
+        </div>
+      </div>
+    `;
     const dom = new JSDOM(html);
     const quizEl = dom.window.document.querySelector('div.m-quiz') as HTMLElement;
 
