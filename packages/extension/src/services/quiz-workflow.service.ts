@@ -68,7 +68,11 @@ export class QuizWorkflowCoordinator {
         payload: { question: quiz.question, options: quiz.options },
       });
 
-      if (res.type === 'QUIZ_SOLVED' && this.config.enabled) {
+      if (
+        res.type === 'QUIZ_SOLVED' &&
+        this.config.enabled &&
+        quiz.containerElement?.isConnected !== false
+      ) {
         logger.info(
           'QuizWorkflow',
           `Quiz solved! Mode: ${this.config.actorMode}, Chosen choice: ${res.payload.chosenLabel} (index ${res.payload.chosenIndex}) in ${res.payload.latencyMs}ms`,
