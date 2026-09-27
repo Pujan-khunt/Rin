@@ -130,6 +130,7 @@ describe('Drona Content Script Entrypoint', () => {
     (global as any).window = dom.window;
     (global as any).HTMLElement = dom.window.HTMLElement;
     (global as any).Node = dom.window.Node;
+    (global as any).MutationObserver = dom.window.MutationObserver;
 
     invalidatedCallbacks = [];
     mockCtx = {
@@ -212,13 +213,20 @@ describe('Drona Content Script Entrypoint', () => {
     expect(cleanupSpy).toHaveBeenCalled();
   });
 
-  it('does not observe or act when extension is disabled in config', async () => {
+  it('does not solve or act when extension is disabled in config', async () => {
     let meetingCallback: (container: HTMLElement) => void = () => {};
     vi.spyOn(lifecycleModule, 'waitForMeeting').mockImplementation((cb) => {
       meetingCallback = cb;
       return vi.fn();
     });
-    const observerSpy = vi.spyOn(observerModule, 'startQuizObserver');
+
+    let observerCallback: (quiz: any) => Promise<void> = async () => {};
+    vi.spyOn(observerModule, 'startQuizObserver').mockImplementation((_el, cb: any) => {
+      observerCallback = cb;
+      return vi.fn();
+    });
+
+    const sendSpy = vi.spyOn(messengerModule, 'sendToBackground');
 
     vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
       actorMode: 'assisted',
@@ -227,8 +235,9 @@ describe('Drona Content Script Entrypoint', () => {
 
     await dronaEntry.main(mockCtx as any);
     await meetingCallback(document.createElement('div'));
+    await observerCallback({ question: 'Test Q', options: [] });
 
-    expect(observerSpy).not.toHaveBeenCalled();
+    expect(sendSpy).not.toHaveBeenCalled();
   });
 
   it('uses ClickActor when actorMode is auto', async () => {

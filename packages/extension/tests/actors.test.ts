@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
 import { HudActor } from '../src/actors/hud-actor';
 import { ClickActor } from '../src/actors/click-actor';
+import { ActorFactory } from '../src/actors/actor-factory';
 import type { QuizData } from '../src/interfaces/quiz';
 import type { SolveResult } from '@rin/shared';
 
@@ -152,6 +153,25 @@ describe('Actor Implementations', () => {
       };
 
       await expect(actor.act({ quiz: mockQuiz, result: invalidResult })).resolves.toBeUndefined();
+    });
+  });
+
+  describe('ActorFactory', () => {
+    it('creates HudActor for assisted mode', () => {
+      const actor = ActorFactory.create('assisted');
+      expect(actor).toBeInstanceOf(HudActor);
+      expect(actor.mode).toBe('assisted');
+    });
+
+    it('creates ClickActor for auto mode', () => {
+      const actor = ActorFactory.create('auto');
+      expect(actor).toBeInstanceOf(ClickActor);
+      expect(actor.mode).toBe('auto');
+    });
+
+    it('defaults to HudActor for unknown/fallback modes', () => {
+      const actor = ActorFactory.create('assisted' as any);
+      expect(actor).toBeInstanceOf(HudActor);
     });
   });
 });
