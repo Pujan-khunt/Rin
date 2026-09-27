@@ -1,6 +1,7 @@
 import { SELECTORS } from '../config/selectors';
 import { extractQuiz } from './extractor';
 import { observeElement } from '../utils/dom';
+import { logger } from '../services/logger';
 import type { QuizData } from '../interfaces/quiz';
 
 /**
@@ -14,19 +15,25 @@ function waitForQuizHydration(
   // Fast-path: Quiz is already fully hydrated
   const initialData = extractQuiz(quizEl);
   if (initialData) {
+    logger.debug('Observer', 'Quiz already hydrated on initial detection', {
+      optionsCount: initialData.options.length,
+    });
     onHydrated(initialData);
     return () => {};
   }
 
   // Reactive path: Shell is mounted, wait for markdown/choices to hydrate
+  logger.debug('Observer', 'Quiz shell mounted, waiting for markdown/choices hydration...');
   const observer = new MutationObserver(() => {
     if (!quizEl.isConnected) {
+      logger.debug('Observer', 'Quiz element disconnected during hydration, aborting.');
       observer.disconnect();
       return;
     }
 
     const hydratedData = extractQuiz(quizEl);
     if (hydratedData) {
+      logger.info('Observer', `Quiz hydration complete! Extracted ${hydratedData.options.length} options.`);
       observer.disconnect();
       onHydrated(hydratedData);
     }
@@ -61,6 +68,7 @@ export function startQuizObserver(
     subtree: false,
     once: false,
     onFound: (quizEl) => {
+      logger.info('Observer', 'Quiz root container (div.m-quiz) found in meeting.');
       stopHydration?.();
       stopHydration = waitForQuizHydration(quizEl, onQuiz);
     },

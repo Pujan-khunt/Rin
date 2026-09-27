@@ -3,6 +3,7 @@ import { ConfigService } from '../services/config.service';
 import { ActorFactory } from '../actors/actor-factory';
 import { QuizWorkflowCoordinator } from '../services/quiz-workflow.service';
 import { MeetingCoordinator } from '../services/meeting-coordinator.service';
+import { logger } from '../services/logger';
 
 /**
  * Rin Content Script Entrypoint for Scaler (Drona).
@@ -17,9 +18,13 @@ export default defineContentScript({
   runAt: 'document_idle',
 
   async main(ctx) {
+    const currentUrl = typeof window !== 'undefined' ? window.location.href : 'unknown';
+    logger.info('ContentScript', `Rin content script mounted on: ${currentUrl}`);
+
     // 1. Initialize Configuration Service
     const configService = new ConfigService();
     const initialConfig = await configService.load();
+    logger.info('ContentScript', 'Initial configuration loaded', initialConfig);
 
     // 2. Initialize Workflow Coordinator with Initial Actor
     const workflow = new QuizWorkflowCoordinator(
@@ -29,6 +34,7 @@ export default defineContentScript({
 
     // 3. React to Real-Time Configuration Updates
     const unsubscribeConfig = configService.subscribe((newConfig) => {
+      logger.info('ContentScript', 'Settings updated in real-time', newConfig);
       workflow.setConfig(newConfig);
       workflow.setActor(ActorFactory.create(newConfig.actorMode));
     });
@@ -39,10 +45,12 @@ export default defineContentScript({
       onMeetingLeave: () => workflow.cleanup(),
     });
 
+    logger.debug('ContentScript', 'Starting meeting coordinator...');
     meetingCoordinator.start();
 
     // 5. Clean Teardown on Extension Reload or Context Invalidation
     ctx.onInvalidated(() => {
+      logger.warn('ContentScript', 'Context invalidated or reloaded, cleaning up...');
       unsubscribeConfig();
       meetingCoordinator.stop();
       workflow.cleanup();
