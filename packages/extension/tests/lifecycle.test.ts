@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { waitForMeeting } from '../src/detection/lifecycle';
+import { waitForMeeting, watchMeetingUnmount } from '../src/detection/lifecycle';
 import { startQuizObserver } from '../src/detection/observer';
 
 describe('Drona Lifecycle & Targeted Observer', () => {
@@ -168,5 +168,117 @@ describe('Drona Lifecycle & Targeted Observer', () => {
     await new Promise((r) => setTimeout(r, 10));
 
     expect(onQuiz).not.toHaveBeenCalled();
+  });
+
+  it('waits for asynchronous markdown hydration inside div.m-quiz', async () => {
+    const vp = document.createElement('div');
+    vp.className = 'vp-container';
+    document.getElementById('root')!.appendChild(vp);
+
+    const onQuiz = vi.fn();
+    const disconnectQuiz = startQuizObserver(vp, onQuiz);
+
+    // 1. Mount unhydrated quiz shell (empty markdown div without <p> yet)
+    const quiz = document.createElement('div');
+    quiz.className = 'm-quiz';
+    quiz.innerHTML = `
+      <div class="m-problem-description__markdown"></div>
+      <div class="m-problem-choices__list">
+        <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>Ans</p></div></a>
+      </div>
+    `;
+    vp.appendChild(quiz);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Must not trigger while question text is empty
+    expect(onQuiz).not.toHaveBeenCalled();
+
+    // 2. React asynchronously renders markdown paragraph into the shell
+    const markdownEl = quiz.querySelector('.m-problem-description__markdown')!;
+    const p = document.createElement('p');
+    p.textContent = 'Asynchronously Rendered Question';
+    markdownEl.appendChild(p);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    // Now onQuiz must be triggered with hydrated question
+    expect(onQuiz).toHaveBeenCalledTimes(1);
+    expect(onQuiz.mock.calls[0][0].question).toBe('Asynchronously Rendered Question');
+
+    disconnectQuiz();
+  });
+
+  it('waits for asynchronous choice hydration inside div.m-quiz', async () => {
+    const vp = document.createElement('div');
+    vp.className = 'vp-container';
+    document.getElementById('root')!.appendChild(vp);
+
+    const onQuiz = vi.fn();
+    const disconnectQuiz = startQuizObserver(vp, onQuiz);
+
+    // Mount quiz shell with populated question but unhydrated choices
+    const quiz = document.createElement('div');
+    quiz.className = 'm-quiz';
+    quiz.innerHTML = `
+      <div class="m-problem-description__markdown"><p>Hydrated Question</p></div>
+      <div class="m-problem-choices__list">
+        <a class="choice"><div class="choice__name">A</div><div class="choice__text"></div></a>
+      </div>
+    `;
+    vp.appendChild(quiz);
+
+    await new Promise((r) => setTimeout(r, 10));
+    expect(onQuiz).not.toHaveBeenCalled();
+
+    // Hydrate choice text
+    const choiceTextEl = quiz.querySelector('.choice__text')!;
+    choiceTextEl.innerHTML = '<p>Hydrated Choice</p>';
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(onQuiz).toHaveBeenCalledTimes(1);
+    expect(onQuiz.mock.calls[0][0].question).toBe('Hydrated Question');
+    expect(onQuiz.mock.calls[0][0].options[0].text).toBe('Hydrated Choice');
+
+    disconnectQuiz();
+  });
+
+  it('watchMeetingUnmount triggers onLeave when .vp-container is removed from its parent', async () => {
+    const root = document.getElementById('root')!;
+    const vp = document.createElement('div');
+    vp.className = 'vp-container';
+    root.appendChild(vp);
+
+    const onLeave = vi.fn();
+    const disconnect = watchMeetingUnmount(vp, onLeave);
+
+    expect(onLeave).not.toHaveBeenCalled();
+
+    // Simulate React unmounting the container
+    root.removeChild(vp);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(onLeave).toHaveBeenCalledTimes(1);
+    disconnect();
+  });
+
+  it('watchMeetingUnmount does not trigger onLeave if disconnected before unmount', async () => {
+    const root = document.getElementById('root')!;
+    const vp = document.createElement('div');
+    vp.className = 'vp-container';
+    root.appendChild(vp);
+
+    const onLeave = vi.fn();
+    const disconnect = watchMeetingUnmount(vp, onLeave);
+
+    disconnect();
+
+    root.removeChild(vp);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(onLeave).not.toHaveBeenCalled();
   });
 });

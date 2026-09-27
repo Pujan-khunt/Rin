@@ -272,4 +272,130 @@ describe('Drona Content Script Entrypoint', () => {
 
     expect(clickActSpy).toHaveBeenCalled();
   });
+
+  it('reacts dynamically to storage changes and hot-swaps between HudActor and ClickActor', async () => {
+    let meetingCallback: (container: HTMLElement) => void = () => {};
+    vi.spyOn(lifecycleModule, 'waitForMeeting').mockImplementation((cb) => {
+      meetingCallback = cb;
+      return vi.fn();
+    });
+
+    let observerCallback: (quiz: any) => Promise<void> = async () => {};
+    vi.spyOn(observerModule, 'startQuizObserver').mockImplementation((_el, cb: any) => {
+      observerCallback = cb;
+      return vi.fn();
+    });
+
+    // Start with assisted mode
+    vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+      actorMode: 'assisted',
+      enabled: true,
+    });
+
+    let storageListener: any;
+    (global as any).browser = {
+      storage: {
+        onChanged: {
+          addListener: vi.fn((listener) => {
+            storageListener = listener;
+          }),
+          removeListener: vi.fn(),
+        },
+      },
+    };
+
+    const hudActSpy = vi.spyOn(HudActor.prototype, 'act').mockResolvedValue();
+    const clickActSpy = vi.spyOn(ClickActor.prototype, 'act').mockResolvedValue();
+
+    vi.spyOn(messengerModule, 'sendToBackground').mockResolvedValue({
+      type: 'QUIZ_SOLVED',
+      payload: {
+        chosenIndex: 0,
+        chosenLabel: 'A',
+        confidence: 1.0,
+        source: 'llm',
+        latencyMs: 50,
+      },
+    });
+
+    await dronaEntry.main(mockCtx as any);
+    await meetingCallback(document.createElement('div'));
+
+    const fakeQuiz = {
+      question: 'Q1',
+      options: ['A', 'B'],
+      element: document.createElement('div'),
+      optionElements: [document.createElement('div'), document.createElement('div')],
+    };
+
+    // Quiz 1 under assisted mode
+    await observerCallback(fakeQuiz);
+    expect(hudActSpy).toHaveBeenCalledTimes(1);
+    expect(clickActSpy).not.toHaveBeenCalled();
+
+    // Hot-swap via storage change event
+    storageListener(
+      {
+        rinConfig: {
+          newValue: { actorMode: 'auto', enabled: true },
+        },
+      },
+      'local'
+    );
+
+    // Quiz 2 under auto mode
+    await observerCallback(fakeQuiz);
+    expect(clickActSpy).toHaveBeenCalledTimes(1);
+  });
+
+  it('handles multiple consecutive meetings in the same session without page reload', async () => {
+    let meetingCallback: (container: HTMLElement) => void = () => {};
+    let unmountCallback: () => void = () => {};
+    const stopWatcher = vi.fn();
+    const stopUnmountWatcher = vi.fn();
+
+    vi.spyOn(lifecycleModule, 'waitForMeeting').mockImplementation((cb) => {
+      meetingCallback = cb;
+      return stopWatcher;
+    });
+
+    vi.spyOn(lifecycleModule, 'watchMeetingUnmount').mockImplementation((_container, cb) => {
+      unmountCallback = cb;
+      return stopUnmountWatcher;
+    });
+
+    const stopObserver1 = vi.fn();
+    const stopObserver2 = vi.fn();
+    let observerCount = 0;
+    vi.spyOn(observerModule, 'startQuizObserver').mockImplementation(() => {
+      observerCount++;
+      return observerCount === 1 ? stopObserver1 : stopObserver2;
+    });
+
+    vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+      actorMode: 'assisted',
+      enabled: true,
+    });
+
+    await dronaEntry.main(mockCtx as any);
+    expect(lifecycleModule.waitForMeeting).toHaveBeenCalledTimes(1);
+
+    // 1. Meeting 1 joins
+    const meeting1 = document.createElement('div');
+    await meetingCallback(meeting1);
+    expect(observerModule.startQuizObserver).toHaveBeenCalledTimes(1);
+    expect(lifecycleModule.watchMeetingUnmount).toHaveBeenCalledWith(meeting1, expect.any(Function));
+
+    // 2. Meeting 1 leaves
+    unmountCallback();
+    expect(stopObserver1).toHaveBeenCalled();
+    // Meeting watcher must be re-armed
+    expect(lifecycleModule.waitForMeeting).toHaveBeenCalledTimes(2);
+
+    // 3. Meeting 2 joins in same tab
+    const meeting2 = document.createElement('div');
+    await meetingCallback(meeting2);
+    expect(observerModule.startQuizObserver).toHaveBeenCalledTimes(2);
+    expect(lifecycleModule.watchMeetingUnmount).toHaveBeenCalledWith(meeting2, expect.any(Function));
+  });
 });

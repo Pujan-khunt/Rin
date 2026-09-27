@@ -9,7 +9,6 @@ export interface QuizSnapshot {
   rawHtml: string;
 }
 
-declare const browser: any;
 
 export async function recordQuizSnapshot(quiz: QuizData): Promise<QuizSnapshot> {
   const snapshot: QuizSnapshot = {

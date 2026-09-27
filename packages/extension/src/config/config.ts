@@ -1,7 +1,5 @@
 import type { RinConfig } from '../interfaces/messages';
 
-declare const browser: any;
-
 export const DEFAULT_CONFIG: RinConfig = {
   actorMode: 'assisted',
   enabled: true,

@@ -11,12 +11,19 @@ export function extractQuiz(container: HTMLElement): QuizData | null {
   const root = findSelfOrDescendant(container, SELECTORS.quiz.root);
   if (!root) return null;
 
-  const questionEl = root.querySelector(SELECTORS.quiz.questionMarkdown);
+  const questionEl = root.querySelector<HTMLElement>(SELECTORS.quiz.questionMarkdown);
   const choiceNodes = root.querySelectorAll<HTMLElement>(SELECTORS.quiz.choiceItem);
 
   if (!questionEl || choiceNodes.length === 0) return null;
 
-  const question = questionEl.textContent?.replace(/\s+/g, ' ').trim();
+  const paragraphNodes = questionEl.querySelectorAll<HTMLElement>('p');
+  const question = paragraphNodes.length > 0
+    ? Array.from(paragraphNodes)
+        .map((p) => p.textContent?.replace(/\s+/g, ' ').trim())
+        .filter(Boolean)
+        .join('\n')
+    : questionEl.textContent?.replace(/\s+/g, ' ').trim();
+
   // Fail-fast: Empty or unrendered question text indicates an invalid/unhydrated quiz state
   if (!question) return null;
 
@@ -29,6 +36,9 @@ export function extractQuiz(container: HTMLElement): QuizData | null {
     options.push({ label, text, index });
     optionElements.push(node);
   });
+
+  // Fail-fast: If options are completely empty of text, they haven't finished hydrating yet
+  if (options.every((opt) => !opt.text)) return null;
 
   return {
     question,

@@ -17,3 +17,8 @@ import { vi } from 'vitest';
     },
   },
 };
+
+// Emulate standard browser globals in test environments
+if (typeof (globalThis as any).PointerEvent === 'undefined') {
+  (globalThis as any).PointerEvent = class PointerEvent extends ((globalThis as any).MouseEvent || class {}) {};
+}
