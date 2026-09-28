@@ -2,6 +2,7 @@ import { defineConfig } from 'wxt';
 
 export default defineConfig({
   srcDir: 'src',
+  manifestVersion: 3,
   manifest: {
     name: 'Rin',
     description: 'Rin is an AI assistant for Scaler Quizzes',
@@ -21,7 +22,13 @@ export default defineConfig({
     browser_specific_settings: {
       gecko: {
         id: 'rin@scaler-quiz-assistant',
-        strict_min_version: '109.0',
+        strict_min_version: '140.0',
+        data_collection_permissions: {
+          required: ['websiteContent'],
+        },
+      },
+      gecko_android: {
+        strict_min_version: '142.0',
       },
     },
     action: {
