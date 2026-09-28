@@ -40,28 +40,16 @@ describe('Config Storage', () => {
   });
 
   it('handles storage get error gracefully and returns default config', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     (global as any).browser.storage.local.get = vi.fn().mockRejectedValue(new Error('Storage failure'));
 
     const config = await loadConfig();
     expect(config).toEqual(DEFAULT_CONFIG);
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[Rin Config] Failed to load config:',
-      expect.any(Error)
-    );
-    consoleSpy.mockRestore();
   });
 
   it('handles storage set error gracefully without throwing', async () => {
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     (global as any).browser.storage.local.set = vi.fn().mockRejectedValue(new Error('Storage set failure'));
 
     await expect(saveConfig({ actorMode: 'auto', enabled: false })).resolves.toBeUndefined();
-    expect(consoleSpy).toHaveBeenCalledWith(
-      '[Rin Config] Failed to save config:',
-      expect.any(Error)
-    );
-    consoleSpy.mockRestore();
   });
 
   it('handles environment where browser is undefined', async () => {

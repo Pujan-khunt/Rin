@@ -100,4 +100,14 @@ describe('QuizWorkflowCoordinator', () => {
 
     expect(mockActor.cleanup).toHaveBeenCalled();
   });
+
+  it('does not act if quiz container was detached while solver was in flight', async () => {
+    const coordinator = new QuizWorkflowCoordinator(mockActor, { actorMode: 'assisted', enabled: true }, mockSolver);
+    mockQuiz.containerElement = { isConnected: false } as any;
+
+    await coordinator.processQuiz(mockQuiz);
+
+    expect(mockSolver).toHaveBeenCalled();
+    expect(mockActor.act).not.toHaveBeenCalled();
+  });
 });

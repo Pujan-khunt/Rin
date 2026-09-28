@@ -1,4 +1,5 @@
 import type { Actor, ActPayload, ActorMode } from '../interfaces/actor';
+import { logger } from '../services/logger';
 
 interface ModifiedElement {
   element: HTMLElement;
@@ -34,10 +35,21 @@ export class HudActor implements Actor {
     this.cleanup();
 
     const target = payload.quiz.optionElements[payload.result.chosenIndex];
-    if (!target) return;
+    if (!target) {
+      logger.warn(
+        'HudActor',
+        `Target option element at index ${payload.result.chosenIndex} (${payload.result.chosenLabel}) not found in DOM`
+      );
+      return;
+    }
 
     this.highlightedElement = target;
     this.originalTargetCssText = target.style.cssText;
+
+    logger.info(
+      'HudActor',
+      `Applying visual HUD highlight to choice ${payload.result.chosenLabel} (index ${payload.result.chosenIndex})`
+    );
 
     // Force override through stylesheets using !important and an accent ring
     target.style.setProperty('background-color', '#e8d5f5', 'important');
@@ -64,6 +76,7 @@ export class HudActor implements Actor {
    */
   cleanup(): void {
     if (this.highlightedElement) {
+      logger.debug('HudActor', 'Cleaned up visual highlight and restored original styles.');
       this.highlightedElement.style.cssText = this.originalTargetCssText;
       this.highlightedElement = null;
       this.originalTargetCssText = '';

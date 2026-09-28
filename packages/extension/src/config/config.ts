@@ -1,4 +1,5 @@
 import type { RinConfig } from '../interfaces/messages';
+import { logger } from '../services/logger';
 
 export const DEFAULT_CONFIG: RinConfig = {
   actorMode: 'assisted',
@@ -8,9 +9,12 @@ export const DEFAULT_CONFIG: RinConfig = {
 export async function loadConfig(): Promise<RinConfig> {
   try {
     const stored = await browser.storage.local.get('rinConfig');
-    return { ...DEFAULT_CONFIG, ...(stored?.rinConfig || {}) };
+    const config = { ...DEFAULT_CONFIG, ...(stored?.rinConfig || {}) };
+    logger.debug('Config', 'Loaded configuration from storage', config);
+    return config;
   } catch (err) {
-    console.error('[Rin Config] Failed to load config:', err);
+    logger.error('Config', `Failed to load config from storage: ${(err as Error)?.message ?? err}`);
+    // Fail gracefully with defaults
   }
   return DEFAULT_CONFIG;
 }
@@ -18,7 +22,9 @@ export async function loadConfig(): Promise<RinConfig> {
 export async function saveConfig(config: RinConfig): Promise<void> {
   try {
     await browser.storage.local.set({ rinConfig: config });
+    logger.debug('Config', 'Saved configuration to storage', config);
   } catch (err) {
-    console.error('[Rin Config] Failed to save config:', err);
+    logger.error('Config', `Failed to save config to storage: ${(err as Error)?.message ?? err}`);
+    // Fail gracefully
   }
 }

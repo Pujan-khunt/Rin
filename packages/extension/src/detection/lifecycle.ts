@@ -1,5 +1,6 @@
 import { SELECTORS } from '../config/selectors';
 import { observeElement } from '../utils/dom';
+import { logger } from '../services/logger';
 
 /**
  * Ephemeral meeting watcher.
@@ -19,15 +20,20 @@ export function waitForMeeting(
         (typeof document !== 'undefined' ? document.body : null));
 
   if (!root) {
+    logger.warn('Lifecycle', 'Root element (#root or body) not found, unable to watch for meeting');
     return () => {};
   }
 
+  logger.debug('Lifecycle', 'Attaching ephemeral meeting observer to root container...');
   return observeElement({
     target: root,
     selector: SELECTORS.meeting.container,
     subtree: true,
     once: true,
-    onFound: onReady,
+    onFound: (container) => {
+      logger.info('Lifecycle', 'Detected meeting container (.vp-container). Disconnecting watcher.');
+      onReady(container);
+    },
   });
 }
 
@@ -42,15 +48,18 @@ export function watchMeetingUnmount(container: HTMLElement, onLeave: () => void)
   const parent = container.parentElement ?? (container.parentNode as HTMLElement | null);
   if (!parent) {
     if (!container.isConnected) {
+      logger.info('Lifecycle', 'Meeting container already disconnected from parent upon mount check.');
       onLeave();
     }
     return () => {};
   }
 
+  logger.debug('Lifecycle', 'Attaching unmount MutationObserver to meeting container parent');
   const observer = new MutationObserver((mutations) => {
     for (const mutation of mutations) {
       for (const node of mutation.removedNodes) {
         if (node === container || !container.isConnected) {
+          logger.info('Lifecycle', 'Meeting container detached from DOM.');
           observer.disconnect();
           onLeave();
           return;

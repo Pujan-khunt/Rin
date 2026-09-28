@@ -1,5 +1,6 @@
 import { SELECTORS } from '../config/selectors';
 import { findSelfOrDescendant } from '../utils/dom';
+import { logger } from '../services/logger';
 import type { QuizData } from '../interfaces/quiz';
 import type { QuizOption } from '@rin/shared';
 
@@ -11,11 +12,16 @@ function extractQuestion(root: HTMLElement): string | null {
   const questionEl = root.querySelector<HTMLElement>(SELECTORS.quiz.questionMarkdown);
   if (!questionEl) return null;
 
-  const paragraphNodes = questionEl.querySelectorAll<HTMLElement>('p');
+  const children = Array.from(questionEl.children);
   const question =
-    paragraphNodes.length > 0
-      ? Array.from(paragraphNodes)
-          .map((p) => normalizeText(p.textContent))
+    children.length > 0
+      ? children
+          .map((child) => {
+            if (child.tagName === 'PRE' || child.querySelector('pre')) {
+              return child.textContent?.trim() ?? '';
+            }
+            return normalizeText(child.textContent);
+          })
           .filter(Boolean)
           .join('\n')
       : normalizeText(questionEl.textContent);
@@ -56,10 +62,22 @@ export function extractQuiz(container: HTMLElement): QuizData | null {
   if (!root) return null;
 
   const question = extractQuestion(root);
-  if (!question) return null;
+  if (!question) {
+    logger.debug('Extractor', 'Question markdown not yet hydrated.');
+    return null;
+  }
 
   const parsedOptions = extractOptions(root);
-  if (!parsedOptions) return null;
+  if (!parsedOptions) {
+    logger.debug('Extractor', 'Options list not yet hydrated.');
+    return null;
+  }
+
+  logger.info(
+    'Extractor',
+    `Extracted quiz with ${parsedOptions.options.length} options: "${question.slice(0, 60)}..."`,
+    { options: parsedOptions.options.map((o) => `${o.label}: ${o.text}`) }
+  );
 
   return {
     question,

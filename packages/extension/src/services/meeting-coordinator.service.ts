@@ -1,5 +1,6 @@
 import { waitForMeeting, watchMeetingUnmount } from '../detection/lifecycle';
 import { startQuizObserver } from '../detection/observer';
+import { logger } from './logger';
 import type { QuizData } from '../interfaces/quiz';
 
 export interface MeetingCoordinatorCallbacks {
@@ -38,6 +39,7 @@ export class MeetingCoordinator {
     if (this.isStopped) return;
 
     this.stopMeetingWatcher?.();
+    logger.info('MeetingCoordinator', 'Watching for meeting container (.vp-container)...');
     this.stopMeetingWatcher = this.meetingWatcher((container) => {
       this.handleMeetingEnter(container);
     });
@@ -47,6 +49,7 @@ export class MeetingCoordinator {
     if (this.isStopped) return;
 
     this.container = container;
+    logger.info('MeetingCoordinator', 'Meeting container (.vp-container) found! Initializing session...');
     this.callbacks.onMeetingEnter?.(container);
 
     // Watch for meeting unmount
@@ -57,12 +60,14 @@ export class MeetingCoordinator {
 
     // Start watching for quizzes inside the container
     this.stopQuizObserver?.();
+    logger.debug('MeetingCoordinator', 'Starting quiz observer on meeting container...');
     this.stopQuizObserver = this.quizObserver(container, (quiz) => {
       this.callbacks.onQuiz(quiz);
     });
   }
 
   private handleMeetingLeave(): void {
+    logger.info('MeetingCoordinator', 'Meeting ended (.vp-container unmounted). Cleaning up session...');
     this.stopQuizObserver?.();
     this.stopQuizObserver = null;
 
@@ -74,11 +79,13 @@ export class MeetingCoordinator {
 
     // Re-arm for subsequent lectures in this tab
     if (!this.isStopped) {
+      logger.debug('MeetingCoordinator', 'Re-arming meeting watcher for next lecture session...');
       this.start();
     }
   }
 
   stop(): void {
+    logger.info('MeetingCoordinator', 'Meeting coordinator stopped.');
     this.isStopped = true;
 
     this.stopMeetingWatcher?.();

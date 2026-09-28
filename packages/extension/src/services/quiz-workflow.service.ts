@@ -1,5 +1,6 @@
 import { sendToBackground } from '../messaging/messenger';
 import { recordQuizSnapshot } from '../detection/recorder';
+import { logger } from './logger';
 import type { Actor } from '../interfaces/actor';
 import type { QuizData } from '../interfaces/quiz';
 import type { RinConfig, ContentMessage, BackgroundResponse } from '../interfaces/messages';
@@ -46,8 +47,14 @@ export class QuizWorkflowCoordinator {
 
   async processQuiz(quiz: QuizData): Promise<void> {
     if (!this.config.enabled) {
+      logger.info('QuizWorkflow', 'Quiz detected, but Rin is disabled in settings.');
       return;
     }
+
+    logger.info(
+      'QuizWorkflow',
+      `Processing quiz (${quiz.options.length} options): "${quiz.question.slice(0, 60)}..."`
+    );
 
     // Dev-only snapshot record
     if (import.meta.env.DEV) {
@@ -55,16 +62,28 @@ export class QuizWorkflowCoordinator {
     }
 
     try {
+      logger.debug('QuizWorkflow', 'Requesting solution from background service worker...');
       const res = await this.solver({
         type: 'SOLVE_QUIZ',
         payload: { question: quiz.question, options: quiz.options },
       });
 
-      if (res.type === 'QUIZ_SOLVED' && this.config.enabled) {
+      if (
+        res.type === 'QUIZ_SOLVED' &&
+        this.config.enabled &&
+        quiz.containerElement?.isConnected !== false
+      ) {
+        logger.info(
+          'QuizWorkflow',
+          `Quiz solved! Mode: ${this.config.actorMode}, Chosen choice: ${res.payload.chosenLabel} (index ${res.payload.chosenIndex}) in ${res.payload.latencyMs}ms`,
+          res.payload
+        );
         await this.actor.act({ quiz, result: res.payload });
+      } else if (res.type === 'ERROR') {
+        logger.error('QuizWorkflow', `Background solver error: ${res.payload.message}`);
       }
-    } catch {
-      // Graceful silence in content script to prevent host page leakage
+    } catch (err) {
+      logger.error('QuizWorkflow', `Failed to solve quiz: ${(err as Error)?.message ?? err}`, err);
     }
   }
 
