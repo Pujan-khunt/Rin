@@ -6,7 +6,7 @@ import { logger } from '../services/logger';
  * Ephemeral meeting watcher.
  *
  * Observes the root application element (or document.body as an SPA fallback)
- * for the arrival of the Drona meeting container (`.vp-container`).
+ * for the arrival of the Drona meeting container (`.m-activity`).
  * Disconnects immediately once the container is detected (zero ongoing overhead).
  */
 export function waitForMeeting(
@@ -24,6 +24,14 @@ export function waitForMeeting(
     return () => {};
   }
 
+  // Fast-path: Check if live container (.m-activity) is already mounted
+  const existingContainer = root.querySelector<HTMLElement>(SELECTORS.meeting.container);
+  if (existingContainer) {
+    logger.info('Lifecycle', 'Detected live meeting container (.m-activity).');
+    onReady(existingContainer);
+    return () => {};
+  }
+
   logger.debug('Lifecycle', 'Attaching ephemeral meeting observer to root container...');
   return observeElement({
     target: root,
@@ -31,7 +39,7 @@ export function waitForMeeting(
     subtree: true,
     once: true,
     onFound: (container) => {
-      logger.info('Lifecycle', 'Detected meeting container (.vp-container). Disconnecting watcher.');
+      logger.info('Lifecycle', 'Detected meeting container (.m-activity). Disconnecting watcher.');
       onReady(container);
     },
   });

@@ -51,8 +51,7 @@ function waitForQuizHydration(
 /**
  * Targeted quiz observer.
  *
- * Attaches strictly to the meeting container `.vp-container` with a shallow scope (`subtree: false`)
- * to catch `div.m-quiz` additions.
+ * Attaches to the meeting activity container `.m-activity` with `subtree: true` to catch `div.m-quiz` additions.
  * Once a quiz element is detected, it delegates to `waitForQuizHydration` to wait
  * for markdown and choices before firing `onQuiz`.
  */
@@ -65,7 +64,7 @@ export function startQuizObserver(
   const stopContainerObserver = observeElement({
     target: container,
     selector: SELECTORS.quiz.root,
-    subtree: false,
+    subtree: true,
     once: false,
     onFound: (quizEl) => {
       logger.info('Observer', 'Quiz root container (div.m-quiz) found in meeting.');

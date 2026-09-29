@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { loadConfig, saveConfig, DEFAULT_CONFIG } from '../src/config/config';
+import { SELECTORS } from '../src/config/selectors';
 
 describe('Config Storage', () => {
   let mockStorage: Record<string, any>;
@@ -61,3 +62,10 @@ describe('Config Storage', () => {
     await expect(saveConfig({ actorMode: 'auto', enabled: false })).resolves.toBeUndefined();
   });
 });
+
+describe('Selectors Configuration', () => {
+  it('defines live meeting container (.m-activity)', () => {
+    expect(SELECTORS.meeting.container).toBe('.m-activity');
+  });
+});
+

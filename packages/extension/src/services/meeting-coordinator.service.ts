@@ -39,7 +39,7 @@ export class MeetingCoordinator {
     if (this.isStopped) return;
 
     this.stopMeetingWatcher?.();
-    logger.info('MeetingCoordinator', 'Watching for meeting container (.vp-container)...');
+    logger.info('MeetingCoordinator', 'Watching for meeting container (.m-activity)...');
     this.stopMeetingWatcher = this.meetingWatcher((container) => {
       this.handleMeetingEnter(container);
     });
@@ -49,7 +49,7 @@ export class MeetingCoordinator {
     if (this.isStopped) return;
 
     this.container = container;
-    logger.info('MeetingCoordinator', 'Meeting container (.vp-container) found! Initializing session...');
+    logger.info('MeetingCoordinator', 'Meeting container found! Initializing session...');
     this.callbacks.onMeetingEnter?.(container);
 
     // Watch for meeting unmount
@@ -67,7 +67,7 @@ export class MeetingCoordinator {
   }
 
   private handleMeetingLeave(): void {
-    logger.info('MeetingCoordinator', 'Meeting ended (.vp-container unmounted). Cleaning up session...');
+    logger.info('MeetingCoordinator', 'Meeting ended (container unmounted). Cleaning up session...');
     this.stopQuizObserver?.();
     this.stopQuizObserver = null;
 

@@ -17,50 +17,50 @@ describe('Drona Lifecycle & Targeted Observer', () => {
     global.document = dom.window.document;
   });
 
-  it('triggers onReady immediately if .vp-container already exists', () => {
+  it('triggers onReady immediately if live meeting container .m-activity already exists', () => {
     const root = document.getElementById('root')!;
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    root.appendChild(vp);
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    root.appendChild(activity);
 
     const onReady = vi.fn();
     waitForMeeting(onReady, root);
 
-    expect(onReady).toHaveBeenCalledWith(vp);
+    expect(onReady).toHaveBeenCalledWith(activity);
   });
 
-  it('detects .vp-container added to #root reactively and disconnects ephemeral watcher', async () => {
+  it('detects .m-activity added to #root reactively and disconnects ephemeral watcher', async () => {
     const root = document.getElementById('root')!;
     const onReady = vi.fn();
     const disconnect = waitForMeeting(onReady, root);
 
-    // Simulate React mounting .vp-container into #root
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    root.appendChild(vp);
+    // Simulate React mounting .m-activity into #root
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    root.appendChild(activity);
 
     // Wait for MutationObserver microtask
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(onReady).toHaveBeenCalledWith(vp);
+    expect(onReady).toHaveBeenCalledWith(activity);
     disconnect();
   });
 
-  it('detects .vp-container nested inside added subtree', async () => {
+  it('detects .m-activity nested inside added subtree', async () => {
     const root = document.getElementById('root')!;
     const onReady = vi.fn();
     waitForMeeting(onReady, root);
 
     const wrapper = document.createElement('div');
     wrapper.className = 'wrapper';
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    wrapper.appendChild(vp);
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    wrapper.appendChild(activity);
     root.appendChild(wrapper);
 
     await new Promise((r) => setTimeout(r, 10));
 
-    expect(onReady).toHaveBeenCalledWith(vp);
+    expect(onReady).toHaveBeenCalledWith(activity);
   });
 
   it('handles missing root gracefully', () => {
@@ -84,22 +84,22 @@ describe('Drona Lifecycle & Targeted Observer', () => {
 
     disconnect();
 
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    root.appendChild(vp);
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    root.appendChild(activity);
 
     await new Promise((r) => setTimeout(r, 10));
 
     expect(onReady).not.toHaveBeenCalled();
   });
 
-  it('targeted observer catches div.m-quiz added to .vp-container', async () => {
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    document.getElementById('root')!.appendChild(vp);
+  it('targeted observer catches div.m-quiz added to .m-activity', async () => {
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    document.getElementById('root')!.appendChild(activity);
 
     const onQuiz = vi.fn();
-    const disconnectQuiz = startQuizObserver(vp, onQuiz);
+    const disconnectQuiz = startQuizObserver(activity, onQuiz);
 
     // Add quiz markup
     const quiz = document.createElement('div');
@@ -110,7 +110,7 @@ describe('Drona Lifecycle & Targeted Observer', () => {
         <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>Ans</p></div></a>
       </div>
     `;
-    vp.appendChild(quiz);
+    activity.appendChild(quiz);
 
     await new Promise((r) => setTimeout(r, 10));
 
@@ -120,9 +120,39 @@ describe('Drona Lifecycle & Targeted Observer', () => {
     disconnectQuiz();
   });
 
+  it('targeted observer catches nested div.m-quiz inside .m-activity sub-containers', async () => {
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    const top = document.createElement('div');
+    top.className = 'm-activity__top';
+    activity.appendChild(top);
+    document.getElementById('root')!.appendChild(activity);
+
+    const onQuiz = vi.fn();
+    const disconnectQuiz = startQuizObserver(activity, onQuiz);
+
+    // Add quiz markup nested inside m-activity (e.g. inside top or directly)
+    const quiz = document.createElement('div');
+    quiz.className = 'm-quiz';
+    quiz.innerHTML = `
+      <div class="m-problem-description__markdown"><p>Companion Question</p></div>
+      <div class="m-problem-choices__list">
+        <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>Ans</p></div></a>
+      </div>
+    `;
+    top.appendChild(quiz);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(onQuiz).toHaveBeenCalledTimes(1);
+    expect(onQuiz.mock.calls[0][0].question).toBe('Companion Question');
+
+    disconnectQuiz();
+  });
+
   it('targeted observer triggers immediately if quiz is already present', () => {
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
     const quiz = document.createElement('div');
     quiz.className = 'm-quiz';
     quiz.innerHTML = `
@@ -131,11 +161,11 @@ describe('Drona Lifecycle & Targeted Observer', () => {
         <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>Ans</p></div></a>
       </div>
     `;
-    vp.appendChild(quiz);
-    document.getElementById('root')!.appendChild(vp);
+    activity.appendChild(quiz);
+    document.getElementById('root')!.appendChild(activity);
 
     const onQuiz = vi.fn();
-    const disconnectQuiz = startQuizObserver(vp, onQuiz);
+    const disconnectQuiz = startQuizObserver(activity, onQuiz);
 
     expect(onQuiz).toHaveBeenCalledTimes(1);
     expect(onQuiz.mock.calls[0][0].question).toBe('Existing Question');
@@ -144,12 +174,12 @@ describe('Drona Lifecycle & Targeted Observer', () => {
   });
 
   it('does not trigger onQuiz after disconnect is called', async () => {
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    document.getElementById('root')!.appendChild(vp);
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    document.getElementById('root')!.appendChild(activity);
 
     const onQuiz = vi.fn();
-    const disconnectQuiz = startQuizObserver(vp, onQuiz);
+    const disconnectQuiz = startQuizObserver(activity, onQuiz);
     disconnectQuiz();
 
     const quiz = document.createElement('div');
@@ -160,7 +190,7 @@ describe('Drona Lifecycle & Targeted Observer', () => {
         <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>Ans</p></div></a>
       </div>
     `;
-    vp.appendChild(quiz);
+    activity.appendChild(quiz);
 
     await new Promise((r) => setTimeout(r, 10));
 
@@ -168,12 +198,12 @@ describe('Drona Lifecycle & Targeted Observer', () => {
   });
 
   it('waits for asynchronous markdown hydration inside div.m-quiz', async () => {
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    document.getElementById('root')!.appendChild(vp);
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    document.getElementById('root')!.appendChild(activity);
 
     const onQuiz = vi.fn();
-    const disconnectQuiz = startQuizObserver(vp, onQuiz);
+    const disconnectQuiz = startQuizObserver(activity, onQuiz);
 
     // 1. Mount unhydrated quiz shell (empty markdown div without <p> yet)
     const quiz = document.createElement('div');
@@ -184,7 +214,7 @@ describe('Drona Lifecycle & Targeted Observer', () => {
         <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>Ans</p></div></a>
       </div>
     `;
-    vp.appendChild(quiz);
+    activity.appendChild(quiz);
 
     await new Promise((r) => setTimeout(r, 10));
 
@@ -207,12 +237,12 @@ describe('Drona Lifecycle & Targeted Observer', () => {
   });
 
   it('waits for asynchronous choice hydration inside div.m-quiz', async () => {
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    document.getElementById('root')!.appendChild(vp);
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    document.getElementById('root')!.appendChild(activity);
 
     const onQuiz = vi.fn();
-    const disconnectQuiz = startQuizObserver(vp, onQuiz);
+    const disconnectQuiz = startQuizObserver(activity, onQuiz);
 
     // Mount quiz shell with populated question but unhydrated choices
     const quiz = document.createElement('div');
@@ -223,7 +253,7 @@ describe('Drona Lifecycle & Targeted Observer', () => {
         <a class="choice"><div class="choice__name">A</div><div class="choice__text"></div></a>
       </div>
     `;
-    vp.appendChild(quiz);
+    activity.appendChild(quiz);
 
     await new Promise((r) => setTimeout(r, 10));
     expect(onQuiz).not.toHaveBeenCalled();
@@ -241,19 +271,19 @@ describe('Drona Lifecycle & Targeted Observer', () => {
     disconnectQuiz();
   });
 
-  it('watchMeetingUnmount triggers onLeave when .vp-container is removed from its parent', async () => {
+  it('watchMeetingUnmount triggers onLeave when .m-activity is removed from its parent', async () => {
     const root = document.getElementById('root')!;
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    root.appendChild(vp);
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    root.appendChild(activity);
 
     const onLeave = vi.fn();
-    const disconnect = watchMeetingUnmount(vp, onLeave);
+    const disconnect = watchMeetingUnmount(activity, onLeave);
 
     expect(onLeave).not.toHaveBeenCalled();
 
     // Simulate React unmounting the container
-    root.removeChild(vp);
+    root.removeChild(activity);
 
     await new Promise((r) => setTimeout(r, 10));
 
@@ -263,16 +293,16 @@ describe('Drona Lifecycle & Targeted Observer', () => {
 
   it('watchMeetingUnmount does not trigger onLeave if disconnected before unmount', async () => {
     const root = document.getElementById('root')!;
-    const vp = document.createElement('div');
-    vp.className = 'vp-container';
-    root.appendChild(vp);
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    root.appendChild(activity);
 
     const onLeave = vi.fn();
-    const disconnect = watchMeetingUnmount(vp, onLeave);
+    const disconnect = watchMeetingUnmount(activity, onLeave);
 
     disconnect();
 
-    root.removeChild(vp);
+    root.removeChild(activity);
 
     await new Promise((r) => setTimeout(r, 10));
 
