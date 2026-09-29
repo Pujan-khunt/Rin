@@ -59,8 +59,16 @@ describe('ConfigService', () => {
       'local'
     );
 
-    expect(listener).toHaveBeenCalledWith({ actorMode: 'auto', enabled: false });
-    expect(service.getConfig()).toEqual({ actorMode: 'auto', enabled: false });
+    expect(listener).toHaveBeenCalledWith({
+      actorMode: 'auto',
+      enabled: false,
+      model: 'typesafe/jev-1.13',
+    });
+    expect(service.getConfig()).toEqual({
+      actorMode: 'auto',
+      enabled: false,
+      model: 'typesafe/jev-1.13',
+    });
 
     // Unsubscribe
     unsubscribe();

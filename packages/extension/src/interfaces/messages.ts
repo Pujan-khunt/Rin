@@ -4,6 +4,7 @@ import type { ActorMode } from './actor';
 export interface RinConfig {
   actorMode: ActorMode;
   enabled: boolean;
+  model?: string;
 }
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';

@@ -24,6 +24,7 @@ describe('Config Storage', () => {
     const config = await loadConfig();
     expect(config.actorMode).toBe('assisted');
     expect(config.enabled).toBe(true);
+    expect(config.model).toBe(DEFAULT_CONFIG.model);
   });
 
   it('saves and reloads modified config', async () => {

@@ -18,14 +18,24 @@ export default defineBackground(() => {
       }
 
       if (message.type === 'SOLVE_QUIZ') {
-        logger.info('Background', 'Received SOLVE_QUIZ request, forwarding to worker solver...', message.payload);
         const start = Date.now();
-        solver
-          .solve(message.payload)
+        loadConfig()
+          .then((config) => {
+            const solvePayload = {
+              ...message.payload,
+              model: import.meta.env.DEV && config.model ? config.model : message.payload.model,
+            };
+            logger.info(
+              'Background',
+              `Forwarding SOLVE_QUIZ to worker (model: ${solvePayload.model || 'default'})...`,
+              solvePayload
+            );
+            return solver.solve(solvePayload);
+          })
           .then((result) => {
             logger.info(
               'Background',
-              `Solver response received in ${Date.now() - start}ms: Choice ${result.chosenLabel} (index ${result.chosenIndex})`,
+              `Solver response received in ${Date.now() - start}ms: Choice ${result.chosenLabel} (index ${result.chosenIndex}, model: ${result.source})`,
               result
             );
             sendResponse({ type: 'QUIZ_SOLVED', payload: result });

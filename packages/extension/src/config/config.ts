@@ -1,9 +1,12 @@
 import type { RinConfig } from '../interfaces/messages';
 import { logger } from '../services/logger';
 
+export const DEFAULT_MODEL = 'typesafe/jev-1.13';
+
 export const DEFAULT_CONFIG: RinConfig = {
   actorMode: 'assisted',
   enabled: true,
+  model: DEFAULT_MODEL,
 };
 
 export async function loadConfig(): Promise<RinConfig> {

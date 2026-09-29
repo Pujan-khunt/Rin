@@ -118,4 +118,110 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
     const data = (await response.json()) as { error: string };
     expect(data.error).toContain('Jev API error: 502');
   });
+
+  it('dispatches to OpenRouter Chat Completions when a non-Jev model is specified', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'gen-chat-12345',
+        choices: [
+          {
+            message: {
+              content: '{"choice": "B"}',
+            },
+          },
+        ],
+      }),
+    });
+
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'What is alignof(double) on x86_64?',
+        options: [
+          { label: 'A', text: '4' },
+          { label: 'B', text: '8' },
+        ],
+        model: 'google/gemini-2.5-flash-lite',
+      }),
+    });
+
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'sk-or-v1-test' });
+    expect(response.status).toBe(200);
+
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://openrouter.ai/api/v1/chat/completions',
+      expect.objectContaining({
+        method: 'POST',
+        headers: expect.objectContaining({
+          Authorization: 'Bearer sk-or-v1-test',
+          'Content-Type': 'application/json',
+        }),
+        body: expect.stringContaining('"model":"google/gemini-2.5-flash-lite"'),
+      })
+    );
+
+    const data = (await response.json()) as SolveResult;
+    expect(data.chosenIndex).toBe(1);
+    expect(data.chosenLabel).toBe('B');
+    expect(data.source).toBe('google/gemini-2.5-flash-lite');
+  });
+
+  it('handles regex fallback when chat model returns wrapped or slightly malformed JSON', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: 'The answer is: ```json\n{"choice": "A"}\n```',
+            },
+          },
+        ],
+      }),
+    });
+
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'Test question',
+        options: [
+          { label: 'A', text: 'Option A' },
+          { label: 'B', text: 'Option B' },
+        ],
+        model: 'openai/gpt-4o-mini',
+      }),
+    });
+
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    expect(response.status).toBe(200);
+    const data = (await response.json()) as SolveResult;
+    expect(data.chosenIndex).toBe(0);
+    expect(data.chosenLabel).toBe('A');
+    expect(data.source).toBe('openai/gpt-4o-mini');
+  });
+
+  it('handles upstream chat API error with 500', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+    });
+
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'Test question',
+        options: [{ label: 'A', text: 'Option A' }],
+        model: 'google/gemini-2.5-flash-lite',
+      }),
+    });
+
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    expect(response.status).toBe(500);
+    const data = (await response.json()) as { error: string };
+    expect(data.error).toContain('OpenRouter Chat API error: 401');
+  });
 });

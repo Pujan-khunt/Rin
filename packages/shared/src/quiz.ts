@@ -50,5 +50,11 @@ export interface QuizInput {
    * The list of available choices for the question.
    */
   options: QuizChoice[];
+
+  /**
+   * Optional inference model identifier (e.g. "typesafe/jev-1.13" or "google/gemini-2.5-flash-lite").
+   * Defaults to "typesafe/jev-1.13" on the worker if omitted.
+   */
+  model?: string;
 }
 

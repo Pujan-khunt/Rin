@@ -28,6 +28,22 @@
           verify and submit.
         </p>
       </div>
+
+      <!-- Dev-Only Model Selector -->
+      <div id="dev-model-section" class="dev-section">
+        <label class="section-label">Solver Model (Dev)</label>
+        <div class="mode-buttons">
+          <button id="model-jev" class="mode-btn active">Jev</button>
+          <button id="model-gemini" class="mode-btn">Gemini Flash-Lite</button>
+        </div>
+        <input
+          type="text"
+          id="custom-model-input"
+          class="custom-model-input"
+          placeholder="Model ID (e.g. google/gemini-2.5-flash-lite)"
+          spellcheck="false"
+        />
+      </div>
     </div>
     <script type="module" src="./main.ts"></script>
   </body>

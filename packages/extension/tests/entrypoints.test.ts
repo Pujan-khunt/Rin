@@ -65,17 +65,23 @@ describe('Background Entrypoint', () => {
     );
 
     expect(keepChannel).toBe(true);
-    expect(solveSpy).toHaveBeenCalledWith({
-      question: 'What is 2+2?',
-      options: ['1', '2', '4', '5'],
-    });
 
     await Promise.resolve();
     await Promise.resolve();
+    await Promise.resolve();
 
-    expect(sendResponse).toHaveBeenCalledWith({
-      type: 'QUIZ_SOLVED',
-      payload: mockResult,
+    expect(solveSpy).toHaveBeenCalledWith(
+      expect.objectContaining({
+        question: 'What is 2+2?',
+        options: ['1', '2', '4', '5'],
+      })
+    );
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({
+        type: 'QUIZ_SOLVED',
+        payload: mockResult,
+      });
     });
   });
 
@@ -94,12 +100,11 @@ describe('Background Entrypoint', () => {
       sendResponse
     );
 
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(sendResponse).toHaveBeenCalledWith({
-      type: 'ERROR',
-      payload: { message: 'Network error' },
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({
+        type: 'ERROR',
+        payload: { message: 'Network error' },
+      });
     });
   });
 
