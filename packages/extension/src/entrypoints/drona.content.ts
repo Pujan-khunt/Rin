@@ -3,6 +3,7 @@ import { ConfigService } from '../services/config.service';
 import { ActorFactory } from '../actors/actor-factory';
 import { QuizWorkflowCoordinator } from '../services/quiz-workflow.service';
 import { MeetingCoordinator } from '../services/meeting-coordinator.service';
+import { setupDevSnapshotHotkey } from '../detection/recorder';
 import { logger } from '../services/logger';
 
 /**
@@ -48,7 +49,17 @@ export default defineContentScript({
     logger.debug('ContentScript', 'Starting meeting coordinator...');
     meetingCoordinator.start();
 
-    // 5. Clean Teardown on Extension Reload or Context Invalidation
+    // 5. Dev-Only DOM Snapshot Hotkey (Alt+Shift+S / Ctrl+Alt+S)
+    if (import.meta.env.DEV) {
+      const teardownDevHotkey = setupDevSnapshotHotkey((snapshot) => {
+        logger.info('ContentScript', `Dev snapshot captured [${snapshot.id}] and downloaded.`);
+      });
+      ctx.onInvalidated(() => {
+        teardownDevHotkey();
+      });
+    }
+
+    // 6. Clean Teardown on Extension Reload or Context Invalidation
     ctx.onInvalidated(() => {
       logger.warn('ContentScript', 'Context invalidated or reloaded, cleaning up...');
       unsubscribeConfig();

@@ -141,6 +141,7 @@ describe('Drona Content Script Entrypoint', () => {
     (global as any).HTMLElement = dom.window.HTMLElement;
     (global as any).Node = dom.window.Node;
     (global as any).MutationObserver = dom.window.MutationObserver;
+    vi.spyOn(dom.window.HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
 
     invalidatedCallbacks = [];
     mockCtx = {

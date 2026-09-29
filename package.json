@@ -10,7 +10,9 @@
     "zip": "pnpm --filter @rin/extension zip",
     "zip:firefox": "pnpm --filter @rin/extension zip:firefox",
     "zip:all": "pnpm --filter @rin/extension zip:all",
-    "zip:source": "git archive --format=zip --output=rin-sources.zip HEAD"
+    "zip:source": "git archive --format=zip --output=rin-sources.zip HEAD",
+    "dev": "pnpm --filter @rin/extension dev",
+    "dev:firefox": "pnpm --filter @rin/extension dev -b firefox"
   },
   "devDependencies": {
     "typescript": "^5.5.4",
