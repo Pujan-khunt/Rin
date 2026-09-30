@@ -73,10 +73,12 @@ export function extractQuiz(container: HTMLElement): QuizData | null {
     return null;
   }
 
+  const alreadyAnswered = root.querySelector(SELECTORS.quiz.choiceSelected) !== null;
+
   logger.info(
     'Extractor',
     `Extracted quiz with ${parsedOptions.options.length} options: "${question.slice(0, 60)}..."`,
-    { options: parsedOptions.options.map((o) => `${o.label}: ${o.text}`) }
+    { options: parsedOptions.options.map((o) => `${o.label}: ${o.text}`), alreadyAnswered }
   );
 
   return {
@@ -86,5 +88,6 @@ export function extractQuiz(container: HTMLElement): QuizData | null {
     containerElement: root,
     rawHtml: root.outerHTML,
     detectedAt: performance.now(),
+    alreadyAnswered,
   };
 }

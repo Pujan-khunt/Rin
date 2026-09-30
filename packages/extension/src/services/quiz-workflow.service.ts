@@ -51,6 +51,11 @@ export class QuizWorkflowCoordinator {
       return;
     }
 
+    if (quiz.alreadyAnswered) {
+      logger.info('QuizWorkflow', 'Quiz already answered by user, skipping solve.');
+      return;
+    }
+
     logger.info(
       'QuizWorkflow',
       `Processing quiz (${quiz.options.length} options): "${quiz.question.slice(0, 60)}..."`

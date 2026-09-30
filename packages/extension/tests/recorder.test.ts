@@ -41,6 +41,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
       containerElement: {} as any,
       rawHtml: '<div class="m-quiz"><p>What is alignof struct?</p></div>',
       detectedAt: 12345,
+      alreadyAnswered: false,
     };
 
     const record = await recordQuizSnapshot(mockQuiz);
@@ -76,6 +77,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
       containerElement: {} as any,
       rawHtml: '<div>New</div>',
       detectedAt: 5000,
+      alreadyAnswered: false,
     };
 
     const record = await recordQuizSnapshot(mockQuiz);
@@ -95,6 +97,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
       containerElement: {} as any,
       rawHtml: '<div>Fail</div>',
       detectedAt: 12345,
+      alreadyAnswered: false,
     };
 
     const record = await recordQuizSnapshot(mockQuiz);
@@ -112,6 +115,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
       containerElement: {} as any,
       rawHtml: '<div>No browser</div>',
       detectedAt: 12345,
+      alreadyAnswered: false,
     };
 
     const record = await recordQuizSnapshot(mockQuiz);
@@ -132,6 +136,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
       containerElement: {} as any,
       rawHtml: '<div>Quiz</div>',
       detectedAt: 100,
+      alreadyAnswered: false,
     };
 
     const record = await recordQuizSnapshot(mockQuiz);
@@ -245,6 +250,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
       containerElement: {} as any,
       rawHtml: '<div>Quiz</div>',
       detectedAt: 12345,
+      alreadyAnswered: false,
     };
 
     await recordQuizSnapshot(mockQuiz);

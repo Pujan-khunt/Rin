@@ -116,5 +116,39 @@ print(x * 2)</code></pre>
     expect(data!.question).toContain('Select the correct answer:');
     expect(data!.options).toHaveLength(2);
   });
+
+  it('sets alreadyAnswered to false when no choice is selected', () => {
+    const html = `
+      <div class="m-quiz">
+        <div class="m-problem-description__markdown"><p>Fresh quiz?</p></div>
+        <div class="m-problem-choices__list">
+          <a class="choice"><div class="choice__name">A</div><div class="choice__text"><p>Yes</p></div></a>
+          <a class="choice"><div class="choice__name">B</div><div class="choice__text"><p>No</p></div></a>
+        </div>
+      </div>
+    `;
+    const dom = new JSDOM(html);
+    const quizEl = dom.window.document.querySelector('div.m-quiz') as HTMLElement;
+    const data = extractQuiz(quizEl);
+    expect(data).not.toBeNull();
+    expect(data!.alreadyAnswered).toBe(false);
+  });
+
+  it('sets alreadyAnswered to true when a choice has choice--selected', () => {
+    const html = `
+      <div class="m-quiz">
+        <div class="m-problem-description__markdown"><p>Already answered quiz</p></div>
+        <div class="m-problem-choices__list">
+          <a class="tappable choice choice--default m-5"><div class="choice__name">A</div><div class="choice__text"><p>Opt 1</p></div></a>
+          <a class="tappable choice choice--default choice--selected m-5"><div class="choice__name">B</div><div class="choice__text"><p>Opt 2</p></div></a>
+        </div>
+      </div>
+    `;
+    const dom = new JSDOM(html);
+    const quizEl = dom.window.document.querySelector('div.m-quiz') as HTMLElement;
+    const data = extractQuiz(quizEl);
+    expect(data).not.toBeNull();
+    expect(data!.alreadyAnswered).toBe(true);
+  });
 });
 

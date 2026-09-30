@@ -38,6 +38,7 @@ describe('Actor Implementations', () => {
       containerElement: document.body,
       rawHtml: '',
       detectedAt: 0,
+      alreadyAnswered: false,
     };
 
     mockResult = {

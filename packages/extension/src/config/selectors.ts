@@ -14,6 +14,7 @@ export const SELECTORS = {
     choiceItem: '.m-problem-choices__list > a.choice',
     choiceLabel: '.choice__name',
     choiceText: '.choice__text',
+    choiceSelected: '.choice--selected',
   },
 } as const;
 

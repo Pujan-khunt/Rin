@@ -34,11 +34,22 @@ describe('QuizWorkflowCoordinator', () => {
       optionElements: [{} as any],
       rawHtml: '',
       detectedAt: Date.now(),
+      alreadyAnswered: false,
     };
   });
 
   it('skips processing if Rin is disabled in config', async () => {
     const coordinator = new QuizWorkflowCoordinator(mockActor, { actorMode: 'assisted', enabled: false }, mockSolver);
+
+    await coordinator.processQuiz(mockQuiz);
+
+    expect(mockSolver).not.toHaveBeenCalled();
+    expect(mockActor.act).not.toHaveBeenCalled();
+  });
+
+  it('skips processing if quiz is already answered', async () => {
+    const coordinator = new QuizWorkflowCoordinator(mockActor, { actorMode: 'assisted', enabled: true }, mockSolver);
+    mockQuiz.alreadyAnswered = true;
 
     await coordinator.processQuiz(mockQuiz);
 

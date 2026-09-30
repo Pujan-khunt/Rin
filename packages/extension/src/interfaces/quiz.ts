@@ -7,4 +7,5 @@ export interface QuizData {
   containerElement: HTMLElement;
   rawHtml: string;
   detectedAt: number;
+  alreadyAnswered: boolean;
 }
