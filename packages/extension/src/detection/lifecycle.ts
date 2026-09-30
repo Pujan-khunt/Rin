@@ -24,10 +24,14 @@ export function waitForMeeting(
     return () => {};
   }
 
-  // Fast-path: Check if live container (.m-activity) is already mounted
+  // Fast-path: Check if meeting or recorded container is already mounted
   const existingContainer = root.querySelector<HTMLElement>(SELECTORS.meeting.container);
   if (existingContainer) {
-    logger.info('Lifecycle', 'Detected live meeting container (.m-activity).');
+    const isVp = existingContainer.matches('.vp-container');
+    logger.info(
+      'Lifecycle',
+      `Detected ${isVp ? 'dev recorded player (.vp-container)' : 'live meeting container (.m-activity)'}.`
+    );
     onReady(existingContainer);
     return () => {};
   }
@@ -39,7 +43,11 @@ export function waitForMeeting(
     subtree: true,
     once: true,
     onFound: (container) => {
-      logger.info('Lifecycle', 'Detected meeting container (.m-activity). Disconnecting watcher.');
+      const isVp = container.matches('.vp-container');
+      logger.info(
+        'Lifecycle',
+        `Detected ${isVp ? 'dev recorded player (.vp-container)' : 'live meeting container (.m-activity)'}. Disconnecting watcher.`
+      );
       onReady(container);
     },
   });

@@ -3,8 +3,8 @@ export const SELECTORS = {
     root: '#root',
   },
   meeting: {
-    /** Live classroom activity container hosting meeting interactions and quizzes */
-    container: '.m-activity',
+    /** Live classroom container (.m-activity), with dev-only support for recorded video player (.vp-container) */
+    container: import.meta.env.DEV ? '.m-activity, .vp-container' : '.m-activity',
   },
   quiz: {
     root: 'div.m-quiz',

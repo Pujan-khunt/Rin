@@ -63,6 +63,33 @@ describe('Drona Lifecycle & Targeted Observer', () => {
     expect(onReady).toHaveBeenCalledWith(activity);
   });
 
+  it('triggers onReady immediately if dev recorded player .vp-container already exists', () => {
+    const root = document.getElementById('root')!;
+    const vpContainer = document.createElement('div');
+    vpContainer.className = 'vp-container';
+    root.appendChild(vpContainer);
+
+    const onReady = vi.fn();
+    waitForMeeting(onReady, root);
+
+    expect(onReady).toHaveBeenCalledWith(vpContainer);
+  });
+
+  it('detects .vp-container added to #root reactively in dev mode', async () => {
+    const root = document.getElementById('root')!;
+    const onReady = vi.fn();
+    const disconnect = waitForMeeting(onReady, root);
+
+    const vpContainer = document.createElement('div');
+    vpContainer.className = 'vp-container';
+    root.appendChild(vpContainer);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(onReady).toHaveBeenCalledWith(vpContainer);
+    disconnect();
+  });
+
   it('handles missing root gracefully', () => {
     const onReady = vi.fn();
     const cleanup = waitForMeeting(onReady, null);

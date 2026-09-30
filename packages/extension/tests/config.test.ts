@@ -65,8 +65,13 @@ describe('Config Storage', () => {
 });
 
 describe('Selectors Configuration', () => {
-  it('defines live meeting container (.m-activity)', () => {
-    expect(SELECTORS.meeting.container).toBe('.m-activity');
+  it('defines live meeting container (.m-activity) with dev-only .vp-container support', () => {
+    expect(SELECTORS.meeting.container).toContain('.m-activity');
+    if (import.meta.env.DEV) {
+      expect(SELECTORS.meeting.container).toBe('.m-activity, .vp-container');
+    } else {
+      expect(SELECTORS.meeting.container).toBe('.m-activity');
+    }
   });
 });
 
