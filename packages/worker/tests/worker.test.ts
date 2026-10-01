@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SolveResult } from '@rin/shared';
-import worker from '../src/index';
+import worker, { solve } from '../src/index';
 import { OPENROUTER_CHAT_URL, DEEPSEEK_MODEL_ID } from '../src/constants';
 
 describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
@@ -181,5 +181,28 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     expect(response.status).toBe(500);
     const data = (await response.json()) as { error: string };
     expect(data.error).toContain('OpenRouter Chat API error: 502');
+  });
+
+  it('solves quiz with custom injected InferenceClient without network fetch', async () => {
+    const mockClient = {
+      complete: vi.fn().mockResolvedValue('{"reasoning": "A is correct", "choice": "A"}'),
+    };
+
+    const result = await solve(
+      {
+        question: 'Injected client test',
+        options: [
+          { label: 'A', text: 'Option 1' },
+          { label: 'B', text: 'Option 2' },
+        ],
+      },
+      'test-api-key',
+      mockClient
+    );
+
+    expect(result.chosenIndex).toBe(0);
+    expect(result.chosenLabel).toBe('A');
+    expect(result.source).toBe(DEEPSEEK_MODEL_ID);
+    expect(mockClient.complete).toHaveBeenCalled();
   });
 });

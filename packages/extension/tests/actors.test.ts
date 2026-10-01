@@ -44,7 +44,6 @@ describe('Actor Implementations', () => {
     mockResult = {
       chosenIndex: 0,
       chosenLabel: 'A',
-      confidence: 0.9,
       source: 'test',
       latencyMs: 10,
     };

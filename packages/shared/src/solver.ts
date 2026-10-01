@@ -17,11 +17,6 @@ export interface SolveResult {
    */
   chosenLabel: string;
 
-  /**
-   * Confidence score reported by the model (ranging from 0.0 to 1.0).
-   * Will be `null` if the inference provider does not supply confidence metrics.
-   */
-  confidence: number | null;
 
   /**
    * Identifier of the solver source or model that evaluated the quiz

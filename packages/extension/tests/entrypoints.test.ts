@@ -46,7 +46,6 @@ describe('Background Entrypoint', () => {
     const mockResult = {
       chosenIndex: 2,
       chosenLabel: 'C',
-      confidence: 0.95,
       source: 'llm',
       latencyMs: 120,
     };
@@ -198,7 +197,6 @@ describe('Drona Content Script Entrypoint', () => {
     const mockSolveResult = {
       chosenIndex: 1,
       chosenLabel: 'B',
-      confidence: 0.9,
       source: 'llm',
       latencyMs: 150,
     };
@@ -296,7 +294,6 @@ describe('Drona Content Script Entrypoint', () => {
       payload: {
         chosenIndex: 0,
         chosenLabel: 'X',
-        confidence: 1.0,
         source: 'llm',
         latencyMs: 90,
       },
@@ -353,7 +350,6 @@ describe('Drona Content Script Entrypoint', () => {
       payload: {
         chosenIndex: 0,
         chosenLabel: 'A',
-        confidence: 1.0,
         source: 'llm',
         latencyMs: 50,
       },

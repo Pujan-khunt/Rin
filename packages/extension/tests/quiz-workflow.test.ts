@@ -21,7 +21,6 @@ describe('QuizWorkflowCoordinator', () => {
       payload: {
         chosenIndex: 0,
         chosenLabel: 'A',
-        confidence: 0.95,
         source: 'llm',
         latencyMs: 100,
       },

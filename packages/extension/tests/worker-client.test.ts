@@ -9,7 +9,6 @@ describe('Extension WorkerClient', () => {
       json: async () => ({
         chosenIndex: 0,
         chosenLabel: 'A',
-        confidence: 0.98,
         source: 'deepseek/deepseek-v4-flash',
         latencyMs: 35,
       }),
