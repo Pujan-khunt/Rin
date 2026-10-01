@@ -7,12 +7,12 @@ const btnAuto = document.getElementById('mode-auto') as HTMLButtonElement;
 const modeDesc = document.getElementById('mode-desc') as HTMLParagraphElement;
 
 const devSection = document.getElementById('dev-model-section');
-const btnJev = document.getElementById('model-jev') as HTMLButtonElement | null;
+const btnDeepseek = document.getElementById('model-deepseek') as HTMLButtonElement | null;
 const btnGemini = document.getElementById('model-gemini') as HTMLButtonElement | null;
 const customModelInput = document.getElementById('custom-model-input') as HTMLInputElement | null;
 
-export const JEV_MODEL = 'typesafe/jev-1.13';
-export const GEMINI_MODEL = 'google/gemini-2.5-flash-lite';
+export const DEEPSEEK_MODEL = 'deepseek/deepseek-v4-flash';
+export const GEMINI_MODEL = 'google/gemini-2.5-flash';
 
 const DESCS: Record<ActorMode, string> = {
   assisted: 'Softly tints the recommended choice in light purple (#e8d5f5). You verify and submit.',
@@ -44,13 +44,13 @@ async function init() {
   // Dev-only model selection
   if (!import.meta.env.DEV) {
     devSection?.remove();
-  } else if (btnJev && btnGemini && customModelInput) {
+  } else if (btnDeepseek && btnGemini && customModelInput) {
     const currentModel = config.model || DEFAULT_MODEL;
     updateModelUI(currentModel);
 
-    btnJev.addEventListener('click', async () => {
-      config.model = JEV_MODEL;
-      updateModelUI(JEV_MODEL);
+    btnDeepseek.addEventListener('click', async () => {
+      config.model = DEEPSEEK_MODEL;
+      updateModelUI(DEEPSEEK_MODEL);
       await saveConfig(config);
     });
 
@@ -62,7 +62,7 @@ async function init() {
 
     customModelInput.addEventListener('change', async () => {
       const val = customModelInput.value.trim();
-      config.model = val || JEV_MODEL;
+      config.model = val || DEEPSEEK_MODEL;
       updateModelUI(config.model);
       await saveConfig(config);
     });
@@ -76,10 +76,10 @@ function updateModeUI(mode: ActorMode) {
 }
 
 function updateModelUI(model: string) {
-  if (!btnJev || !btnGemini || !customModelInput) return;
-  const isJev = model === JEV_MODEL || model === 'jev';
+  if (!btnDeepseek || !btnGemini || !customModelInput) return;
+  const isDeepseek = model === DEEPSEEK_MODEL;
   const isGemini = model === GEMINI_MODEL;
-  btnJev.classList.toggle('active', isJev);
+  btnDeepseek.classList.toggle('active', isDeepseek);
   btnGemini.classList.toggle('active', isGemini);
   customModelInput.value = model;
 }

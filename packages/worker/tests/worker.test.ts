@@ -1,26 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SolveResult } from '@rin/shared';
 import worker from '../src/index';
-import { OPENROUTER_DECISIONS_URL, OPENROUTER_CHAT_URL, JEV_MODEL_ID, DEEPSEEK_MODEL_ID } from '../src/constants';
+import { OPENROUTER_CHAT_URL, DEEPSEEK_MODEL_ID } from '../src/constants';
 
-describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
+describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
   beforeEach(() => {
-    // Mock global fetch for AI provider
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
-        id: 'gen-dec-12345',
-        model: 'typesafe/jev-1.13-20260917',
-        provider: 'TypeSafe',
-        answers: {
-          answer: {
-            type: 'choice',
-            choice: 'B',
-            confidence: 0.94,
-            probabilities: { A: 0.06, B: 0.94 },
+        id: 'gen-chat-default',
+        choices: [
+          {
+            message: {
+              content: '{"reasoning": "64 bytes is standard cache line size.", "choice": "B"}',
+            },
           },
-        },
-        usage: { input_tokens: 120, output_tokens: 10, cost: 0.000005 },
+        ],
       }),
     });
   });
@@ -34,28 +29,14 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
   });
 
   it('processes POST /solve with default model via Chat Completions API', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 'gen-chat-default',
-        choices: [
-          {
-            message: {
-              content: '{"reasoning": "64 bytes is the standard cache line size on most modern x86 CPUs.", "choice": "A"}',
-            },
-          },
-        ],
-      }),
-    });
-
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         question: 'What is usually cache line size?',
         options: [
-          { label: 'A', text: '64 bytes' },
-          { label: 'B', text: '64 kb' },
+          { label: 'A', text: '64 kb' },
+          { label: 'B', text: '64 bytes' },
         ],
       }),
     });
@@ -75,8 +56,8 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
     );
 
     const data = (await response.json()) as SolveResult;
-    expect(data.chosenIndex).toBe(0);
-    expect(data.chosenLabel).toBe('A');
+    expect(data.chosenIndex).toBe(1);
+    expect(data.chosenLabel).toBe('B');
     expect(data.source).toBe(DEEPSEEK_MODEL_ID);
   });
 
@@ -97,28 +78,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
     expect(response.status).toBe(405);
   });
 
-  it('handles upstream OpenRouter service errors with 500', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: false,
-      status: 502,
-    });
-
-    const request = new Request('http://localhost:8787/solve', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        question: 'What is usually cache line size?',
-        options: [{ label: 'A', text: '64 bytes' }],
-      }),
-    });
-
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
-    expect(response.status).toBe(500);
-    const data = (await response.json()) as { error: string };
-    expect(data.error).toContain('OpenRouter Chat API error: 502');
-  });
-
-  it('dispatches to OpenRouter Chat Completions when a non-Jev model is specified', async () => {
+  it('dispatches to OpenRouter Chat Completions when an explicit model is specified', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -142,7 +102,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
           { label: 'A', text: '4' },
           { label: 'B', text: '8' },
         ],
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'google/gemini-2.5-flash',
       }),
     });
 
@@ -150,21 +110,21 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
     expect(response.status).toBe(200);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      'https://openrouter.ai/api/v1/chat/completions',
+      OPENROUTER_CHAT_URL,
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
           Authorization: 'Bearer sk-or-v1-test',
           'Content-Type': 'application/json',
         }),
-        body: expect.stringContaining('"model":"google/gemini-2.5-flash-lite"'),
+        body: expect.stringContaining('"model":"google/gemini-2.5-flash"'),
       })
     );
 
     const data = (await response.json()) as SolveResult;
     expect(data.chosenIndex).toBe(1);
     expect(data.chosenLabel).toBe('B');
-    expect(data.source).toBe('google/gemini-2.5-flash-lite');
+    expect(data.source).toBe('google/gemini-2.5-flash');
   });
 
   it('handles regex fallback when chat model returns wrapped or slightly malformed JSON', async () => {
@@ -205,7 +165,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
   it('handles upstream chat API error with 500', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: false,
-      status: 401,
+      status: 502,
     });
 
     const request = new Request('http://localhost:8787/solve', {
@@ -214,13 +174,12 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
       body: JSON.stringify({
         question: 'Test question',
         options: [{ label: 'A', text: 'Option A' }],
-        model: 'google/gemini-2.5-flash-lite',
       }),
     });
 
     const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
     expect(response.status).toBe(500);
     const data = (await response.json()) as { error: string };
-    expect(data.error).toContain('OpenRouter Chat API error: 401');
+    expect(data.error).toContain('OpenRouter Chat API error: 502');
   });
 });

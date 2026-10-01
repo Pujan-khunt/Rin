@@ -25,7 +25,7 @@ export interface SolveResult {
 
   /**
    * Identifier of the solver source or model that evaluated the quiz
-   * (e.g. "jev", "typesafe/jev-1.13", or "mock").
+   * (e.g. "deepseek/deepseek-v4-flash", "google/gemini-2.5-flash", or "mock").
    */
   source: string;
 

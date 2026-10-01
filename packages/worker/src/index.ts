@@ -1,9 +1,7 @@
 import type { QuizInput, SolveResult } from '@rin/shared';
 import {
-  OPENROUTER_DECISIONS_URL,
   OPENROUTER_CHAT_URL,
   DEFAULT_MODEL_ID,
-  JEV_MODEL_ID,
 } from './constants';
 
 export interface Env {
@@ -15,63 +13,6 @@ const CORS_HEADERS = {
   'Access-Control-Allow-Methods': 'POST, OPTIONS',
   'Access-Control-Allow-Headers': 'Content-Type, X-Rin-Client',
 };
-
-export function isJevModel(model: string): boolean {
-  const normalized = model.trim().toLowerCase();
-  return (
-    normalized === 'jev' ||
-    normalized.startsWith('typesafe/jev') ||
-    normalized.includes('/jev')
-  );
-}
-
-async function solveWithJev(
-  quiz: QuizInput,
-  apiKey: string,
-  model: string = JEV_MODEL_ID
-): Promise<SolveResult> {
-  const start = performance.now();
-  const criteria: Record<string, string> = {};
-  for (const opt of quiz.options) {
-    criteria[opt.label] = opt.text;
-  }
-
-  const res = await fetch(OPENROUTER_DECISIONS_URL, {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      model,
-      state: quiz.question,
-      questions: {
-        answer: {
-          type: 'choice',
-          instructions: 'Which option correctly answers the question?',
-          criteria,
-        },
-      },
-    }),
-  });
-
-  if (!res.ok) {
-    throw new Error(`Jev API error: ${res.status}`);
-  }
-
-  const data = (await res.json()) as any;
-  const choice = data.answers?.answer?.choice;
-  const confidence = data.answers?.answer?.confidence ?? null;
-  const chosenIndex = quiz.options.findIndex((o) => o.label === choice);
-
-  return {
-    chosenIndex: chosenIndex >= 0 ? chosenIndex : 0,
-    chosenLabel: choice ?? quiz.options[0].label,
-    confidence,
-    source: 'jev',
-    latencyMs: Math.round(performance.now() - start),
-  };
-}
 
 async function solveWithChatCompletions(
   quiz: QuizInput,
@@ -139,9 +80,6 @@ async function solveWithChatCompletions(
 
 export async function solve(quiz: QuizInput, apiKey: string): Promise<SolveResult> {
   const model = quiz.model?.trim() || DEFAULT_MODEL_ID;
-  if (isJevModel(model)) {
-    return solveWithJev(quiz, apiKey, model);
-  }
   return solveWithChatCompletions(quiz, apiKey, model);
 }
 

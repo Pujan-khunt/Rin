@@ -10,7 +10,7 @@ describe('Extension WorkerClient', () => {
         chosenIndex: 0,
         chosenLabel: 'A',
         confidence: 0.98,
-        source: 'jev',
+        source: 'deepseek/deepseek-v4-flash',
         latencyMs: 35,
       }),
     });

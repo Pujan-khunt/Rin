@@ -28,14 +28,14 @@ describe('Popup UI Interaction', () => {
       <div id="dev-model-section" class="dev-section">
         <label class="section-label">Solver Model (Dev)</label>
         <div class="mode-buttons">
-          <button id="model-jev" class="mode-btn active">Jev</button>
-          <button id="model-gemini" class="mode-btn">Gemini Flash-Lite</button>
+          <button id="model-deepseek" class="mode-btn active">DeepSeek V4 Flash</button>
+          <button id="model-gemini" class="mode-btn">Gemini Flash</button>
         </div>
         <input
           type="text"
           id="custom-model-input"
           class="custom-model-input"
-          placeholder="Model ID (e.g. google/gemini-2.5-flash-lite)"
+          placeholder="Model ID (e.g. google/gemini-2.5-flash)"
         />
       </div>
     </div>
@@ -121,18 +121,18 @@ describe('Popup UI Interaction', () => {
 
   it('updates model when Gemini preset is clicked', async () => {
     const btnGemini = document.getElementById('model-gemini') as HTMLButtonElement;
-    const btnJev = document.getElementById('model-jev') as HTMLButtonElement;
+    const btnDeepseek = document.getElementById('model-deepseek') as HTMLButtonElement;
     const customInput = document.getElementById('custom-model-input') as HTMLInputElement;
 
     btnGemini.click();
     await Promise.resolve();
 
     expect(btnGemini.classList.contains('active')).toBe(true);
-    expect(btnJev.classList.contains('active')).toBe(false);
-    expect(customInput.value).toBe('google/gemini-2.5-flash-lite');
+    expect(btnDeepseek.classList.contains('active')).toBe(false);
+    expect(customInput.value).toBe('google/gemini-2.5-flash');
     expect(saveConfigSpy).toHaveBeenCalledWith(
       expect.objectContaining({
-        model: 'google/gemini-2.5-flash-lite',
+        model: 'google/gemini-2.5-flash',
       })
     );
   });

@@ -62,12 +62,12 @@ describe('ConfigService', () => {
     expect(listener).toHaveBeenCalledWith({
       actorMode: 'auto',
       enabled: false,
-      model: 'typesafe/jev-1.13',
+      model: 'deepseek/deepseek-v4-flash',
     });
     expect(service.getConfig()).toEqual({
       actorMode: 'auto',
       enabled: false,
-      model: 'typesafe/jev-1.13',
+      model: 'deepseek/deepseek-v4-flash',
     });
 
     // Unsubscribe

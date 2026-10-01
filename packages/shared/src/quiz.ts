@@ -52,8 +52,8 @@ export interface QuizInput {
   options: QuizChoice[];
 
   /**
-   * Optional inference model identifier (e.g. "typesafe/jev-1.13" or "google/gemini-2.5-flash-lite").
-   * Defaults to "typesafe/jev-1.13" on the worker if omitted.
+   * Optional inference model identifier (e.g. "deepseek/deepseek-v4-flash" or "google/gemini-2.5-flash").
+   * Defaults to "deepseek/deepseek-v4-flash" on the worker if omitted.
    */
   model?: string;
 }
