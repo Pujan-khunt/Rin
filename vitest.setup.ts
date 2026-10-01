@@ -27,3 +27,9 @@ import { vi } from 'vitest';
 if (typeof (globalThis as any).PointerEvent === 'undefined') {
   (globalThis as any).PointerEvent = class PointerEvent extends ((globalThis as any).MouseEvent || class {}) {};
 }
+
+// Emulate build-injected environment variables for test suites
+if (typeof import.meta.env === 'object' && import.meta.env !== null) {
+  (import.meta.env as any).RIN_CLIENT_KEY = 'test-client-key';
+}
+

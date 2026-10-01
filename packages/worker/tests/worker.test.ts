@@ -1,19 +1,21 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SolveResult } from '@rin/shared';
-import { CLIENT_HEADER_NAME, DEFAULT_CLIENT_KEY } from '@rin/shared';
+import { CLIENT_HEADER_NAME } from '@rin/shared';
 import worker, { solve } from '../src/index';
 import { OPENROUTER_CHAT_URL, DEEPSEEK_MODEL_ID } from '../src/constants';
+
+const TEST_CLIENT_KEY = 'test-client-key';
 
 describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
   const authHeaders = {
     'Content-Type': 'application/json',
-    [CLIENT_HEADER_NAME]: DEFAULT_CLIENT_KEY,
+    [CLIENT_HEADER_NAME]: TEST_CLIENT_KEY,
     Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
   };
 
   const defaultEnv = {
     OPENROUTER_API_KEY: 'test-key',
-    RIN_CLIENT_KEY: DEFAULT_CLIENT_KEY,
+    RIN_CLIENT_KEY: TEST_CLIENT_KEY,
   };
 
   beforeEach(() => {
@@ -72,7 +74,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        [CLIENT_HEADER_NAME]: DEFAULT_CLIENT_KEY,
+        [CLIENT_HEADER_NAME]: TEST_CLIENT_KEY,
       },
       body: JSON.stringify({ question: 'Test?', options: [{ label: 'A', text: '1' }] }),
     });
@@ -125,7 +127,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       }),
     });
 
-    const response = await worker.fetch(request, { RIN_CLIENT_KEY: DEFAULT_CLIENT_KEY });
+    const response = await worker.fetch(request, { RIN_CLIENT_KEY: TEST_CLIENT_KEY });
     expect(response.status).toBe(500);
     const data = (await response.json()) as { error: string };
     expect(data.error).toContain('OPENROUTER_API_KEY is missing');
@@ -210,7 +212,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
 
     const response = await worker.fetch(request, {
       OPENROUTER_API_KEY: 'sk-or-v1-test',
-      RIN_CLIENT_KEY: DEFAULT_CLIENT_KEY,
+      RIN_CLIENT_KEY: TEST_CLIENT_KEY,
     });
     expect(response.status).toBe(200);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
@@ -284,7 +286,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
 
     const response = await worker.fetch(request, {
       OPENROUTER_API_KEY: 'sk-or-v1-test',
-      RIN_CLIENT_KEY: DEFAULT_CLIENT_KEY,
+      RIN_CLIENT_KEY: TEST_CLIENT_KEY,
     });
     expect(response.status).toBe(200);
 

@@ -2,6 +2,12 @@
   "name": "rin-solver",
   "main": "src/index.ts",
   "compatibility_date": "2026-09-20",
+  "routes": [
+    {
+      "pattern": "rin-worker.pujankhunt.me",
+      "custom_domain": true
+    }
+  ],
   "observability": {
     "logs": {
       "enabled": true,

@@ -4,9 +4,11 @@
 export const CLIENT_HEADER_NAME = 'X-Rin-Client';
 
 /**
- * Default shared client key used for development and client authentication.
+ * Error response payload returned by the Cloudflare Worker when a request fails.
  */
-export const DEFAULT_CLIENT_KEY = 'rin-client-v1';
+export interface WorkerErrorResponse {
+  error: string;
+}
 
 /**
  * Normalized result payload produced by the solver engine.

@@ -2,13 +2,13 @@
 
 > **Smart in-class AI assistant for Scaler Quizzes.**
 
-Rin is a high-performance, Manifest V3 browser extension engineered to detect, solve, and assist with real-time classroom quizzes on the Scaler (Drona) learning platform. Powered by an ultra-low latency Cloudflare Worker edge AI proxy, Rin works unobtrusively in the background during live lectures.
+Rin is a high-performance, Manifest V3 browser extension engineered to detect, solve, and assist with real-time classroom quizzes on the Scaler (Drona) learning platform. Powered by an ultra-low latency Cloudflare Worker edge AI proxy running on OpenRouter Chat Completions, Rin operates unobtrusively in the background during live lectures.
 
 ---
 
 ## Architecture & Monorepo Structure
 
-Rin is built as a strict `pnpm` monorepo:
+Rin is structured as a strict `pnpm` monorepo:
 
 ```
 rin/
@@ -18,14 +18,16 @@ rin/
 │   │   │   ├── actors/     # Polymorphic execution strategies (HudActor, ClickActor)
 │   │   │   ├── detection/  # DOM extraction, ephemeral lifecycle, and quiz observation
 │   │   │   ├── entrypoints/# WXT entrypoints (drona.content.ts, background.ts, popup/)
-│   │   │   └── services/   # SOLID domain coordinators (Meeting, QuizWorkflow, Config)
+│   │   │   ├── services/   # SOLID domain coordinators (Meeting, QuizWorkflow, Config)
+│   │   │   └── solver/     # WorkerClient communicating with edge proxy
 │   │   └── public/icon/    # Extension icons (16, 32, 48, 128 px)
 │   │
 │   ├── worker/             # Cloudflare Worker Edge AI proxy endpoint (POST /solve)
-│   │   └── src/index.ts    # Jev AI inference caller with CORS and payload validation
+│   │   ├── src/index.ts    # OpenRouter Chat Completions inference and request authentication
+│   │   └── wrangler.jsonc  # Cloudflare Worker deployment configuration and custom domain route
 │   │
 │   └── shared/             # Shared TypeScript data contracts and types (@rin/shared)
-│       └── src/            # QuizInput, QuizOption, SolveResult contracts
+│       └── src/            # QuizInput, QuizOption, SolveResult, WorkerErrorResponse contracts
 ```
 
 ---
@@ -36,6 +38,7 @@ rin/
 
 - [Node.js](https://nodejs.org/) (v18.0.0 or higher)
 - [pnpm](https://pnpm.io/) (v9.0.0 or higher)
+- [Cloudflare Wrangler CLI](https://developers.cloudflare.com/workers/wrangler/) (for worker deployments)
 
 ### Installation
 
@@ -49,45 +52,75 @@ pnpm install
 
 ---
 
-## Development & Commands
+## Configuration & Environment Variables
 
-### Browser Extension
+### 1. Cloudflare Worker (`packages/worker`)
 
-#### Chrome & Chromium (Brave, Edge)
+The worker requires two secrets configured in Cloudflare:
 
-```bash
-# Run in development mode with live hot-reloading
-pnpm --filter @rin/extension dev
+| Variable | Description |
+|---|---|
+| `OPENROUTER_API_KEY` | Upstream API key for OpenRouter Chat Completions. |
+| `RIN_CLIENT_KEY` | Shared secret key required in the `X-Rin-Client` request header. |
 
-# Build production bundle (.output/chrome-mv3)
-pnpm build
-
-# Package Chrome Web Store zip (.output/rinextension-0.1.0-chrome.zip)
-pnpm zip
+For local worker development, create `packages/worker/.dev.vars`:
+```ini
+OPENROUTER_API_KEY="sk-or-v1-..."
+RIN_CLIENT_KEY="your-shared-client-secret"
 ```
 
-#### Firefox
-
+For production deployment via Wrangler:
 ```bash
-# Run in development mode with live hot-reloading in Firefox
-pnpm --filter @rin/extension dev:firefox
-
-# Build Firefox production bundle (.output/firefox-mv2)
-pnpm build:firefox
-
-# Package Firefox AMO zip and source code archive
-pnpm zip:firefox
+cd packages/worker
+npx wrangler secret put OPENROUTER_API_KEY
+npx wrangler secret put RIN_CLIENT_KEY
 ```
 
-#### Package for All Browsers
+### 2. Browser Extension (`packages/extension`)
+
+The extension strictly requires `RIN_CLIENT_KEY` at build time. If missing, the build will immediately abort:
 
 ```bash
-pnpm zip:all
+export RIN_CLIENT_KEY="your-shared-client-secret"
 ```
 
 ---
 
-### Testing & Verification
+## Build & Development Commands
+
+### Browser Extension
+
+```bash
+# Build Chrome production bundle with injected client key (.output/chrome-mv3)
+RIN_CLIENT_KEY="your-secret" pnpm build
+
+# Run in development mode with live hot-reloading
+RIN_CLIENT_KEY="your-secret" pnpm --filter @rin/extension dev
+
+# Build Firefox production bundle (.output/firefox-mv2)
+RIN_CLIENT_KEY="your-secret" pnpm build:firefox
+
+# Package Chrome Web Store zip (.output/rin-0.1.0-chrome.zip)
+RIN_CLIENT_KEY="your-secret" pnpm zip
+
+# Package Firefox AMO zip and source archive
+RIN_CLIENT_KEY="your-secret" pnpm zip:firefox
+RIN_CLIENT_KEY="your-secret" pnpm zip:all
+```
+
+### Cloudflare Worker
+
+```bash
+# Run local worker dev server (http://localhost:8787)
+pnpm --filter @rin/worker dev
+
+# Deploy to Cloudflare Workers (rin-worker.pujankhunt.me)
+pnpm --filter @rin/worker deploy
+```
+
+---
+
+## Testing & Verification
 
 Run the full automated test suite across all workspace packages:
 
@@ -107,21 +140,22 @@ pnpm typecheck
 
 ### Chrome / Brave / Edge
 
-1. Run `pnpm build`.
+1. Run `RIN_CLIENT_KEY="your-secret" pnpm build`.
 2. Navigate to `chrome://extensions`.
 3. Enable **Developer mode** (top-right toggle).
-4. Click **Load unpacked** and select the folder:
+4. Click **Load unpacked** and select:
    `packages/extension/.output/chrome-mv3`
 
 ### Firefox
 
-1. Run `pnpm build:firefox`.
+1. Run `RIN_CLIENT_KEY="your-secret" pnpm build:firefox`.
 2. Navigate to `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on...**.
-4. Select `packages/extension/.output/firefox-mv2/manifest.json` (or the packaged `.zip` file).
+4. Select `packages/extension/.output/firefox-mv2/manifest.json`.
 
 ---
 
 ## License
 
 This project is licensed under the [MIT License](LICENSE).
+

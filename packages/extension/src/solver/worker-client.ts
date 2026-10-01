@@ -1,15 +1,25 @@
-import type { QuizInput, SolveResult } from '@rin/shared';
-import { CLIENT_HEADER_NAME, DEFAULT_CLIENT_KEY } from '@rin/shared';
+import type { QuizInput, SolveResult, WorkerErrorResponse } from '@rin/shared';
+import { CLIENT_HEADER_NAME } from '@rin/shared';
 import { logger } from '../services/logger';
 
 export const DEFAULT_WORKER_URL = 'https://rin-worker.pujankhunt.me/solve';
 
 export class WorkerClient {
+  private readonly clientKey: string;
+
   constructor(
     private readonly workerUrl: string = DEFAULT_WORKER_URL,
     private readonly timeoutMs: number = 5000,
-    private readonly clientKey: string = DEFAULT_CLIENT_KEY
-  ) {}
+    clientKey?: string
+  ) {
+    const key = clientKey || import.meta.env.RIN_CLIENT_KEY;
+    if (!key) {
+      throw new Error(
+        'WorkerClient initialization failed: RIN_CLIENT_KEY is missing. Provide RIN_CLIENT_KEY at build time or pass it to constructor.'
+      );
+    }
+    this.clientKey = key;
+  }
 
   async solve(input: QuizInput): Promise<SolveResult> {
     logger.debug('WorkerClient', `Dispatching POST to Cloudflare Worker solver: ${this.workerUrl}`);
@@ -24,8 +34,12 @@ export class WorkerClient {
     });
 
     if (!response.ok) {
-      logger.error('WorkerClient', `Solver returned HTTP error ${response.status}`);
-      throw new Error(`Worker returned HTTP ${response.status}`);
+      const errorData = (await response.json()) as WorkerErrorResponse;
+      const errorMessage = errorData?.error
+        ? `Worker returned HTTP ${response.status}: ${errorData.error}`
+        : `Worker returned HTTP ${response.status}`;
+      logger.error('WorkerClient', errorMessage);
+      throw new Error(errorMessage);
     }
 
     const result = (await response.json()) as SolveResult;
@@ -33,3 +47,4 @@ export class WorkerClient {
     return result;
   }
 }
+
