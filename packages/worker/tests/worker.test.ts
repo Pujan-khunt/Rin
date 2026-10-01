@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SolveResult } from '@rin/shared';
 import worker from '../src/index';
-import { OPENROUTER_DECISIONS_URL, JEV_MODEL_ID } from '../src/constants';
+import { OPENROUTER_DECISIONS_URL, OPENROUTER_CHAT_URL, JEV_MODEL_ID, DEEPSEEK_MODEL_ID } from '../src/constants';
 
 describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
   beforeEach(() => {
@@ -33,7 +33,21 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
   });
 
-  it('processes POST /solve and dispatches to OpenRouter Decisions API', async () => {
+  it('processes POST /solve with default model via Chat Completions API', async () => {
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        id: 'gen-chat-default',
+        choices: [
+          {
+            message: {
+              content: '{"reasoning": "64 bytes is the standard cache line size on most modern x86 CPUs.", "choice": "A"}',
+            },
+          },
+        ],
+      }),
+    });
+
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -50,35 +64,20 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
     expect(response.status).toBe(200);
 
     expect(global.fetch).toHaveBeenCalledWith(
-      OPENROUTER_DECISIONS_URL,
+      OPENROUTER_CHAT_URL,
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
           Authorization: 'Bearer sk-or-v1-test',
-          'Content-Type': 'application/json',
         }),
-        body: JSON.stringify({
-          model: JEV_MODEL_ID,
-          state: 'What is usually cache line size?',
-          questions: {
-            answer: {
-              type: 'choice',
-              instructions: 'Which option correctly answers the question?',
-              criteria: {
-                A: '64 bytes',
-                B: '64 kb',
-              },
-            },
-          },
-        }),
+        body: expect.stringContaining(`"model":"${DEEPSEEK_MODEL_ID}"`),
       })
     );
 
     const data = (await response.json()) as SolveResult;
-    expect(data.chosenIndex).toBe(1);
-    expect(data.chosenLabel).toBe('B');
-    expect(data.confidence).toBe(0.94);
-    expect(data.source).toBe('jev');
+    expect(data.chosenIndex).toBe(0);
+    expect(data.chosenLabel).toBe('A');
+    expect(data.source).toBe(DEEPSEEK_MODEL_ID);
   });
 
   it('rejects invalid payloads with 400', async () => {
@@ -116,7 +115,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Jev)', () => {
     const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
     expect(response.status).toBe(500);
     const data = (await response.json()) as { error: string };
-    expect(data.error).toContain('Jev API error: 502');
+    expect(data.error).toContain('OpenRouter Chat API error: 502');
   });
 
   it('dispatches to OpenRouter Chat Completions when a non-Jev model is specified', async () => {

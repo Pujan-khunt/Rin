@@ -93,7 +93,7 @@ async function solveWithChatCompletions(
         {
           role: 'system',
           content:
-            'You are an expert technical multiple-choice quiz solver. Pick the single correct option label. Respond ONLY with a valid JSON object matching: {"choice": "A"}',
+            'You are an expert quiz solver. You will receive a multiple-choice question from a technical course (topics include C++, DSA, system design, databases, finance, etc.).\n\nThink step by step:\n1. Identify what the question is asking.\n2. Evaluate each option — briefly reason why it is correct or incorrect.\n3. Select the single correct answer.\n\nRespond with a JSON object: {"reasoning": "<your brief step-by-step analysis>", "choice": "<correct option letter>"}',
         },
         {
           role: 'user',
@@ -101,8 +101,8 @@ async function solveWithChatCompletions(
         },
       ],
       response_format: { type: 'json_object' },
-      temperature: 0.1,
-      max_tokens: 30,
+      temperature: 0,
+      max_tokens: 1024,
     }),
   });
 
