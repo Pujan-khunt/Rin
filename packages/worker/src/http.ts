@@ -29,6 +29,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
     'Access-Control-Allow-Origin': allowOrigin,
     'Access-Control-Allow-Methods': 'POST, OPTIONS',
     'Access-Control-Allow-Headers': `Content-Type, ${CLIENT_HEADER_NAME}`,
+    Vary: 'Origin',
   };
 }
 

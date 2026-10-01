@@ -38,6 +38,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       'chrome-extension://abcdefghijklmnopqrstuvwxyz123456'
     );
     expect(response.headers.get('Access-Control-Allow-Headers')).toContain(CLIENT_HEADER_NAME);
+    expect(response.headers.get('Vary')).toBe('Origin');
   });
 
   it('rejects CORS OPTIONS preflight from untrusted web origin with 403', async () => {
