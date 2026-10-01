@@ -28,7 +28,10 @@ describe('Extension WorkerClient', () => {
       'https://mock-worker.workers.dev/solve',
       expect.objectContaining({
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
+        headers: {
+          'Content-Type': 'application/json',
+          'X-Rin-Client': 'rin-client-v1',
+        },
         body: JSON.stringify({
           question: 'Test?',
           options: [{ label: 'A', text: 'Ans' }],

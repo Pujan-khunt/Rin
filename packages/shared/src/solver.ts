@@ -1,4 +1,14 @@
 /**
+ * Standard client authentication header sent by the Rin extension to the Cloudflare Worker.
+ */
+export const CLIENT_HEADER_NAME = 'X-Rin-Client';
+
+/**
+ * Default shared client key used for development and client authentication.
+ */
+export const DEFAULT_CLIENT_KEY = 'rin-client-v1';
+
+/**
  * Normalized result payload produced by the solver engine.
  *
  * Returned by the Cloudflare Worker proxy (`POST /solve`) and offline benchmark
@@ -17,7 +27,6 @@ export interface SolveResult {
    */
   chosenLabel: string;
 
-
   /**
    * Identifier of the solver source or model that evaluated the quiz
    * (e.g. "deepseek/deepseek-v4-flash", "google/gemini-2.5-flash", or "mock").
@@ -29,4 +38,3 @@ export interface SolveResult {
    */
   latencyMs: number;
 }
-

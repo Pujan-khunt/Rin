@@ -3,10 +3,18 @@ import { DEFAULT_MODEL_ID } from './constants';
 import { buildChatPayload } from './prompt';
 import { parseQuizChoice } from './parser';
 import { OpenRouterClient, type InferenceClient } from './client';
-import { handleOptions, jsonResponse, errorResponse, validateQuizInput } from './http';
+import {
+  handleOptions,
+  jsonResponse,
+  errorResponse,
+  validateQuizInput,
+  validateClientKey,
+  isAllowedOrigin,
+} from './http';
 
 export interface Env {
   OPENROUTER_API_KEY?: string;
+  RIN_CLIENT_KEY?: string;
 }
 
 const defaultClient = new OpenRouterClient();
@@ -41,26 +49,35 @@ export async function solve(
 export default {
   async fetch(request: Request, env: Env): Promise<Response> {
     if (request.method === 'OPTIONS') {
-      return handleOptions();
+      return handleOptions(request);
     }
 
     if (request.method !== 'POST') {
-      return errorResponse('Method Not Allowed', 405);
+      return errorResponse('Method Not Allowed', request, 405);
+    }
+
+    const origin = request.headers.get('Origin');
+    if (origin && !isAllowedOrigin(origin)) {
+      return errorResponse('Origin not allowed by CORS policy', request, 403);
+    }
+
+    if (!validateClientKey(request, env.RIN_CLIENT_KEY)) {
+      return errorResponse('Unauthorized: Invalid or missing X-Rin-Client header', request, 401);
     }
 
     try {
       const input = (await request.json()) as unknown;
       if (!validateQuizInput(input)) {
-        return errorResponse('Invalid QuizInput payload', 400);
+        return errorResponse('Invalid QuizInput payload', request, 400);
       }
 
       const apiKey = env.OPENROUTER_API_KEY || 'mock-key';
       const result = await solve(input, apiKey);
 
-      return jsonResponse(result);
+      return jsonResponse(result, request);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Internal solver error';
-      return errorResponse(message, 500);
+      return errorResponse(message, request, 500);
     }
   },
 };

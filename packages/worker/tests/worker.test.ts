@@ -1,9 +1,15 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SolveResult } from '@rin/shared';
+import { CLIENT_HEADER_NAME, DEFAULT_CLIENT_KEY } from '@rin/shared';
 import worker, { solve } from '../src/index';
 import { OPENROUTER_CHAT_URL, DEEPSEEK_MODEL_ID } from '../src/constants';
 
 describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
+  const authHeaders = {
+    'Content-Type': 'application/json',
+    [CLIENT_HEADER_NAME]: DEFAULT_CLIENT_KEY,
+  };
+
   beforeEach(() => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -20,18 +26,110 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     });
   });
 
-  it('handles CORS OPTIONS preflight', async () => {
-    const request = new Request('http://localhost:8787/solve', { method: 'OPTIONS' });
+  it('handles CORS OPTIONS preflight from extension origin', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'OPTIONS',
+      headers: { Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456' },
+    });
     const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
 
     expect(response.status).toBe(204);
-    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('*');
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
+      'chrome-extension://abcdefghijklmnopqrstuvwxyz123456'
+    );
+    expect(response.headers.get('Access-Control-Allow-Headers')).toContain(CLIENT_HEADER_NAME);
+  });
+
+  it('rejects CORS OPTIONS preflight from untrusted web origin with 403', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'OPTIONS',
+      headers: { Origin: 'https://malicious-website.com' },
+    });
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('null');
+  });
+
+  it('rejects POST from untrusted origin with 403', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+        Origin: 'https://malicious-website.com',
+      },
+      body: JSON.stringify({ question: 'Test?', options: [{ label: 'A', text: '1' }] }),
+    });
+
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    expect(response.status).toBe(403);
+    const data = (await response.json()) as { error: string };
+    expect(data.error).toContain('Origin not allowed');
+  });
+
+  it('rejects request missing X-Rin-Client header with 401', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        question: 'What is usually cache line size?',
+        options: [{ label: 'A', text: '64 bytes' }],
+      }),
+    });
+
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    expect(response.status).toBe(401);
+    const data = (await response.json()) as { error: string };
+    expect(data.error).toContain('Unauthorized');
+  });
+
+  it('rejects request with invalid X-Rin-Client header with 401', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [CLIENT_HEADER_NAME]: 'wrong-key',
+      },
+      body: JSON.stringify({
+        question: 'What is usually cache line size?',
+        options: [{ label: 'A', text: '64 bytes' }],
+      }),
+    });
+
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    expect(response.status).toBe(401);
+  });
+
+  it('accepts custom configured RIN_CLIENT_KEY from worker env', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [CLIENT_HEADER_NAME]: 'my-production-secret',
+      },
+      body: JSON.stringify({
+        question: 'What is usually cache line size?',
+        options: [
+          { label: 'A', text: '64 kb' },
+          { label: 'B', text: '64 bytes' },
+        ],
+      }),
+    });
+
+    const response = await worker.fetch(request, {
+      OPENROUTER_API_KEY: 'test-key',
+      RIN_CLIENT_KEY: 'my-production-secret',
+    });
+    expect(response.status).toBe(200);
   });
 
   it('processes POST /solve with default model via Chat Completions API', async () => {
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        ...authHeaders,
+        Origin: 'moz-extension://e7f53a99-4d92-4f3d-82d1-039c647b5921',
+      },
       body: JSON.stringify({
         question: 'What is usually cache line size?',
         options: [
@@ -43,6 +141,9 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
 
     const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'sk-or-v1-test' });
     expect(response.status).toBe(200);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
+      'moz-extension://e7f53a99-4d92-4f3d-82d1-039c647b5921'
+    );
 
     expect(global.fetch).toHaveBeenCalledWith(
       OPENROUTER_CHAT_URL,
@@ -64,7 +165,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
   it('rejects invalid payloads with 400', async () => {
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({}),
     });
 
@@ -73,7 +174,10 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
   });
 
   it('rejects unsupported HTTP methods with 405', async () => {
-    const request = new Request('http://localhost:8787/solve', { method: 'GET' });
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'GET',
+      headers: authHeaders,
+    });
     const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
     expect(response.status).toBe(405);
   });
@@ -95,7 +199,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
 
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({
         question: 'What is alignof(double) on x86_64?',
         options: [
@@ -143,7 +247,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
 
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({
         question: 'Test question',
         options: [
@@ -170,7 +274,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
 
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: authHeaders,
       body: JSON.stringify({
         question: 'Test question',
         options: [{ label: 'A', text: 'Option A' }],
