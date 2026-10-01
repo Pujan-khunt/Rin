@@ -28,36 +28,32 @@ describe('Worker Choice Parser', () => {
     expect(result.chosenLabel).toBe('C');
   });
 
-  it('supports alternative keys such as chosenLabel and label', () => {
-    expect(parseQuizChoice(JSON.stringify({ chosenLabel: 'D' }), options)).toEqual({
-      chosenIndex: 3,
-      chosenLabel: 'D',
-    });
-    expect(parseQuizChoice(JSON.stringify({ label: 'A' }), options)).toEqual({
-      chosenIndex: 0,
-      chosenLabel: 'A',
-    });
-  });
-
-  it('extracts choice via regex when wrapped in markdown code blocks', () => {
-    const raw = 'Here is the answer:\n```json\n{"reasoning": "Simple math", "choice": "C"}\n```';
+  it('parses JSON wrapped inside markdown code blocks', () => {
+    const raw = '```json\n{"reasoning": "Simple math", "choice": "C"}\n```';
     const result = parseQuizChoice(raw, options);
     expect(result.chosenIndex).toBe(2);
     expect(result.chosenLabel).toBe('C');
   });
 
-  it('extracts choice via regex when JSON is preceded and followed by arbitrary text', () => {
-    const raw = 'Thinking: C++ padding.\n{"choice": "B"}\nEnd of explanation.';
-    const result = parseQuizChoice(raw, options);
-    expect(result.chosenIndex).toBe(1);
-    expect(result.chosenLabel).toBe('B');
+  it('throws an error when JSON cannot be parsed', () => {
+    const raw = 'I think the answer is B';
+    expect(() => parseQuizChoice(raw, options)).toThrow(
+      'Failed to parse LLM response as JSON'
+    );
   });
 
-  it('gracefully falls back to first option when model output is completely unrecognized', () => {
-    const raw = 'I am not sure what the answer is.';
-    const result = parseQuizChoice(raw, options);
-    expect(result.chosenIndex).toBe(0);
-    expect(result.chosenLabel).toBe('A');
+  it('throws an error when "choice" field is missing from JSON', () => {
+    const raw = JSON.stringify({ reasoning: 'Missing choice property' });
+    expect(() => parseQuizChoice(raw, options)).toThrow(
+      'LLM response missing "choice" field'
+    );
+  });
+
+  it('throws an error when choice is not among available options', () => {
+    const raw = JSON.stringify({ choice: 'Z' });
+    expect(() => parseQuizChoice(raw, options)).toThrow(
+      'Model selected unknown choice "Z". Available options: [A, B, C, D]'
+    );
   });
 
   it('handles 2-option quizzes (True/False)', () => {

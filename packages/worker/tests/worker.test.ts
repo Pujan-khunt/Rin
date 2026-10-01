@@ -127,14 +127,14 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     expect(data.source).toBe('google/gemini-2.5-flash');
   });
 
-  it('handles regex fallback when chat model returns wrapped or slightly malformed JSON', async () => {
+  it('parses markdown code block wrapped JSON from chat model', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
         choices: [
           {
             message: {
-              content: 'The answer is: ```json\n{"choice": "A"}\n```',
+              content: '```json\n{"choice": "A"}\n```',
             },
           },
         ],

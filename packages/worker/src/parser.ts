@@ -1,44 +1,51 @@
 import type { QuizChoice } from '@rin/shared';
 
+export interface ModelAnswer {
+  reasoning?: string;
+  choice: string;
+}
+
 export interface ParsedQuizChoice {
   chosenIndex: number;
   chosenLabel: string;
 }
 
 /**
- * Extracts and resolves the selected quiz option from raw LLM output.
+ * Extracts the choice from the LLM's response and finds its corresponding option index.
  *
- * Supports structured JSON object parsing as well as markdown-wrapped or
- * partial JSON regex fallback.
+ * Assumes the happy path: parses the raw content as JSON and strictly expects
+ * the "choice" property. Strips optional markdown code fence wrappers if present.
+ *
+ * Throws a descriptive error if the output cannot be parsed or if the selected
+ * choice does not exist in the options list (no guessing or silent fallbacks).
  */
 export function parseQuizChoice(rawContent: string, options: QuizChoice[]): ParsedQuizChoice {
-  let choiceLabel = '';
+  let answer: ModelAnswer;
 
   try {
-    const parsed = JSON.parse(rawContent);
-    choiceLabel = (parsed.choice || parsed.chosenLabel || parsed.label || '').trim();
+    // Strip optional markdown code fences (e.g. ```json ... ```)
+    const cleaned = rawContent.replace(/```(?:json)?/gi, '').trim();
+    answer = JSON.parse(cleaned);
   } catch {
-    const match = rawContent.match(/"(?:choice|chosenLabel|label)"\s*:\s*"([A-Za-z0-9]+)"/i);
-    if (match) {
-      choiceLabel = match[1].trim();
-    }
+    throw new Error(`Failed to parse LLM response as JSON: "${rawContent}"`);
   }
 
-  const chosenIndex = options.findIndex(
-    (o) => o.label.toUpperCase() === choiceLabel.toUpperCase()
-  );
-
-  if (chosenIndex >= 0) {
-    return {
-      chosenIndex,
-      chosenLabel: options[chosenIndex].label,
-    };
+  if (!answer || typeof answer.choice !== 'string' || !answer.choice.trim()) {
+    throw new Error(`LLM response missing "choice" field: "${rawContent}"`);
   }
 
-  // Graceful fallback to first option if model returned unknown or empty label
-  const fallbackLabel = options[0]?.label ?? 'A';
+  const choiceLabel = answer.choice.trim().toUpperCase();
+  const chosenIndex = options.findIndex((o) => o.label.toUpperCase() === choiceLabel);
+
+  if (chosenIndex === -1) {
+    const available = options.map((o) => o.label).join(', ');
+    throw new Error(
+      `Model selected unknown choice "${answer.choice}". Available options: [${available}]`
+    );
+  }
+
   return {
-    chosenIndex: 0,
-    chosenLabel: fallbackLabel,
+    chosenIndex,
+    chosenLabel: options[chosenIndex].label,
   };
 }
