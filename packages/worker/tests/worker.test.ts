@@ -11,6 +11,11 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
   };
 
+  const defaultEnv = {
+    OPENROUTER_API_KEY: 'test-key',
+    RIN_CLIENT_KEY: DEFAULT_CLIENT_KEY,
+  };
+
   beforeEach(() => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -32,7 +37,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       method: 'OPTIONS',
       headers: { Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456' },
     });
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
 
     expect(response.status).toBe(204);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
@@ -47,7 +52,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       method: 'OPTIONS',
       headers: { Origin: 'https://malicious-website.com' },
     });
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
 
     expect(response.status).toBe(403);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('null');
@@ -57,7 +62,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     const request = new Request('http://localhost:8787/solve', {
       method: 'OPTIONS',
     });
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
 
     expect(response.status).toBe(403);
   });
@@ -72,7 +77,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       body: JSON.stringify({ question: 'Test?', options: [{ label: 'A', text: '1' }] }),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
     expect(response.status).toBe(403);
     const data = (await response.json()) as { error: string };
     expect(data.error).toContain('Origin header required');
@@ -88,10 +93,42 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       body: JSON.stringify({ question: 'Test?', options: [{ label: 'A', text: '1' }] }),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
     expect(response.status).toBe(403);
     const data = (await response.json()) as { error: string };
     expect(data.error).toContain('Origin header required');
+  });
+
+  it('rejects request with 500 when RIN_CLIENT_KEY is missing from worker env', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        question: 'What is usually cache line size?',
+        options: [{ label: 'A', text: '64 bytes' }],
+      }),
+    });
+
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    expect(response.status).toBe(500);
+    const data = (await response.json()) as { error: string };
+    expect(data.error).toContain('RIN_CLIENT_KEY is missing');
+  });
+
+  it('rejects request with 500 when OPENROUTER_API_KEY is missing from worker env', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({
+        question: 'What is usually cache line size?',
+        options: [{ label: 'A', text: '64 bytes' }],
+      }),
+    });
+
+    const response = await worker.fetch(request, { RIN_CLIENT_KEY: DEFAULT_CLIENT_KEY });
+    expect(response.status).toBe(500);
+    const data = (await response.json()) as { error: string };
+    expect(data.error).toContain('OPENROUTER_API_KEY is missing');
   });
 
   it('rejects request missing X-Rin-Client header with 401', async () => {
@@ -107,7 +144,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       }),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
     expect(response.status).toBe(401);
     const data = (await response.json()) as { error: string };
     expect(data.error).toContain('Unauthorized');
@@ -127,7 +164,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       }),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
     expect(response.status).toBe(401);
   });
 
@@ -171,7 +208,10 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       }),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'sk-or-v1-test' });
+    const response = await worker.fetch(request, {
+      OPENROUTER_API_KEY: 'sk-or-v1-test',
+      RIN_CLIENT_KEY: DEFAULT_CLIENT_KEY,
+    });
     expect(response.status).toBe(200);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
       'moz-extension://e7f53a99-4d92-4f3d-82d1-039c647b5921'
@@ -201,7 +241,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       body: JSON.stringify({}),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
     expect(response.status).toBe(400);
   });
 
@@ -210,7 +250,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       method: 'GET',
       headers: authHeaders,
     });
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
     expect(response.status).toBe(405);
   });
 
@@ -242,7 +282,10 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       }),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'sk-or-v1-test' });
+    const response = await worker.fetch(request, {
+      OPENROUTER_API_KEY: 'sk-or-v1-test',
+      RIN_CLIENT_KEY: DEFAULT_CLIENT_KEY,
+    });
     expect(response.status).toBe(200);
 
     expect(global.fetch).toHaveBeenCalledWith(
@@ -290,7 +333,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       }),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
     expect(response.status).toBe(200);
     const data = (await response.json()) as SolveResult;
     expect(data.chosenIndex).toBe(0);
@@ -313,7 +356,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       }),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, defaultEnv);
     expect(response.status).toBe(500);
     const data = (await response.json()) as { error: string };
     expect(data.error).toContain('OpenRouter Chat API error: 502');

@@ -1,11 +1,16 @@
 import type { QuizInput } from '@rin/shared';
-import { CLIENT_HEADER_NAME, DEFAULT_CLIENT_KEY } from '@rin/shared';
+import { CLIENT_HEADER_NAME } from '@rin/shared';
+
+export interface Env {
+  OPENROUTER_API_KEY?: string;
+  RIN_CLIENT_KEY?: string;
+}
 
 /**
  * Validates whether an incoming HTTP Origin belongs to a browser extension or local development.
  *
- * Disallows requests originating from untrusted web pages. If no Origin header is present
- * (such as background workers or server-to-server calls), returns true.
+ * Strictly requires the Origin header to be present and to match an allowed scheme.
+ * Returns false if the Origin header is missing or disallowed.
  */
 export function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
@@ -14,7 +19,6 @@ export function isAllowedOrigin(origin: string | null): boolean {
     origin.startsWith('chrome-extension://') ||
     origin.startsWith('moz-extension://') ||
     origin.startsWith('http://localhost') ||
-    origin.startsWith('https://localhost') ||
     origin.startsWith('http://127.0.0.1')
   );
 }
@@ -63,12 +67,31 @@ export function errorResponse(message: string, request?: Request, status = 500):
 }
 
 /**
- * Validates the presence and validity of the X-Rin-Client header.
+ * Middleware validating server environment configuration and request client authentication.
+ *
+ * 1. Strictly requires RIN_CLIENT_KEY in env (returns 500 if missing).
+ * 2. Strictly requires OPENROUTER_API_KEY in env (returns 500 if missing).
+ * 3. Validates X-Rin-Client header matches RIN_CLIENT_KEY (returns 401 if missing or invalid).
+ *
+ * Returns an error Response if any check fails, or null if authentication succeeds.
  */
-export function validateClientKey(request: Request, clientSecret?: string): boolean {
-  const expectedKey = clientSecret?.trim() || DEFAULT_CLIENT_KEY;
-  const clientKey = request.headers.get(CLIENT_HEADER_NAME);
-  return clientKey === expectedKey;
+export function authenticateRequest(request: Request, env: Env): Response | null {
+  const clientSecret = env.RIN_CLIENT_KEY?.trim();
+  if (!clientSecret) {
+    return errorResponse('Server configuration error: RIN_CLIENT_KEY is missing', request, 500);
+  }
+
+  const openRouterKey = env.OPENROUTER_API_KEY?.trim();
+  if (!openRouterKey) {
+    return errorResponse('Server configuration error: OPENROUTER_API_KEY is missing', request, 500);
+  }
+
+  const clientHeader = request.headers.get(CLIENT_HEADER_NAME);
+  if (clientHeader !== clientSecret) {
+    return errorResponse('Unauthorized: Invalid or missing X-Rin-Client header', request, 401);
+  }
+
+  return null;
 }
 
 /**

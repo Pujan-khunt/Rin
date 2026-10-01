@@ -1,21 +1,19 @@
 import type { QuizInput, SolveResult } from '@rin/shared';
 import { DEFAULT_MODEL_ID } from './constants';
-import { buildChatPayload } from './prompt';
-import { parseQuizChoice } from './parser';
+import { buildChatPayload, type ChatCompletionPayload } from './prompt';
+import { parseQuizChoice, type ParsedQuizChoice } from './parser';
 import { OpenRouterClient, type InferenceClient } from './client';
 import {
   handleOptions,
   jsonResponse,
   errorResponse,
   validateQuizInput,
-  validateClientKey,
+  authenticateRequest,
   isAllowedOrigin,
+  type Env,
 } from './http';
 
-export interface Env {
-  OPENROUTER_API_KEY?: string;
-  RIN_CLIENT_KEY?: string;
-}
+export type { Env };
 
 const defaultClient = new OpenRouterClient();
 
@@ -34,9 +32,9 @@ export async function solve(
   const model = quiz.model?.trim() || DEFAULT_MODEL_ID;
   const start = performance.now();
 
-  const payload = buildChatPayload(quiz, model);
-  const rawContent = await client.complete(payload, apiKey);
-  const choice = parseQuizChoice(rawContent, quiz.options);
+  const payload: ChatCompletionPayload = buildChatPayload(quiz, model);
+  const rawContent: string = await client.complete(payload, apiKey);
+  const choice: ParsedQuizChoice = parseQuizChoice(rawContent, quiz.options);
 
   return {
     chosenIndex: choice.chosenIndex,
@@ -58,11 +56,16 @@ export default {
 
     const origin = request.headers.get('Origin');
     if (!isAllowedOrigin(origin)) {
-      return errorResponse('Forbidden: Origin header required and must belong to an authorized extension or localhost', request, 403);
+      return errorResponse(
+        'Forbidden: Origin header required and must belong to an authorized extension or localhost',
+        request,
+        403
+      );
     }
 
-    if (!validateClientKey(request, env.RIN_CLIENT_KEY)) {
-      return errorResponse('Unauthorized: Invalid or missing X-Rin-Client header', request, 401);
+    const authError = authenticateRequest(request, env);
+    if (authError) {
+      return authError;
     }
 
     try {
@@ -71,7 +74,7 @@ export default {
         return errorResponse('Invalid QuizInput payload', request, 400);
       }
 
-      const apiKey = env.OPENROUTER_API_KEY || 'mock-key';
+      const apiKey = env.OPENROUTER_API_KEY as string;
       const result = await solve(input, apiKey);
 
       return jsonResponse(result, request);
