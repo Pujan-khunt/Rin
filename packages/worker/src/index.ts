@@ -57,8 +57,8 @@ export default {
     }
 
     const origin = request.headers.get('Origin');
-    if (origin && !isAllowedOrigin(origin)) {
-      return errorResponse('Origin not allowed by CORS policy', request, 403);
+    if (!isAllowedOrigin(origin)) {
+      return errorResponse('Forbidden: Origin header required and must belong to an authorized extension or localhost', request, 403);
     }
 
     if (!validateClientKey(request, env.RIN_CLIENT_KEY)) {

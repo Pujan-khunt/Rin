@@ -8,12 +8,13 @@ import { CLIENT_HEADER_NAME, DEFAULT_CLIENT_KEY } from '@rin/shared';
  * (such as background workers or server-to-server calls), returns true.
  */
 export function isAllowedOrigin(origin: string | null): boolean {
-  if (!origin) return true;
+  if (!origin) return false;
 
   return (
     origin.startsWith('chrome-extension://') ||
     origin.startsWith('moz-extension://') ||
     origin.startsWith('http://localhost') ||
+    origin.startsWith('https://localhost') ||
     origin.startsWith('http://127.0.0.1')
   );
 }
@@ -23,7 +24,7 @@ export function isAllowedOrigin(origin: string | null): boolean {
  */
 export function getCorsHeaders(origin: string | null): Record<string, string> {
   const allowed = isAllowedOrigin(origin);
-  const allowOrigin = allowed ? (origin ?? '*') : 'null';
+  const allowOrigin = allowed && origin ? origin : 'null';
 
   return {
     'Access-Control-Allow-Origin': allowOrigin,
@@ -38,7 +39,7 @@ export function getCorsHeaders(origin: string | null): Record<string, string> {
  */
 export function handleOptions(request: Request): Response {
   const origin = request.headers.get('Origin');
-  if (origin && !isAllowedOrigin(origin)) {
+  if (!isAllowedOrigin(origin)) {
     return new Response(null, { status: 403, headers: getCorsHeaders(origin) });
   }
 

@@ -8,6 +8,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
   const authHeaders = {
     'Content-Type': 'application/json',
     [CLIENT_HEADER_NAME]: DEFAULT_CLIENT_KEY,
+    Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
   };
 
   beforeEach(() => {
@@ -52,6 +53,31 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('null');
   });
 
+  it('rejects CORS OPTIONS preflight missing Origin header with 403', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'OPTIONS',
+    });
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+
+    expect(response.status).toBe(403);
+  });
+
+  it('rejects POST missing Origin header with 403', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        [CLIENT_HEADER_NAME]: DEFAULT_CLIENT_KEY,
+      },
+      body: JSON.stringify({ question: 'Test?', options: [{ label: 'A', text: '1' }] }),
+    });
+
+    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    expect(response.status).toBe(403);
+    const data = (await response.json()) as { error: string };
+    expect(data.error).toContain('Origin header required');
+  });
+
   it('rejects POST from untrusted origin with 403', async () => {
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
@@ -65,13 +91,16 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
     expect(response.status).toBe(403);
     const data = (await response.json()) as { error: string };
-    expect(data.error).toContain('Origin not allowed');
+    expect(data.error).toContain('Origin header required');
   });
 
   it('rejects request missing X-Rin-Client header with 401', async () => {
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
+      },
       body: JSON.stringify({
         question: 'What is usually cache line size?',
         options: [{ label: 'A', text: '64 bytes' }],
@@ -89,6 +118,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
         [CLIENT_HEADER_NAME]: 'wrong-key',
       },
       body: JSON.stringify({
@@ -106,6 +136,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
         [CLIENT_HEADER_NAME]: 'my-production-secret',
       },
       body: JSON.stringify({

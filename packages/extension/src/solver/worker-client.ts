@@ -2,7 +2,7 @@ import type { QuizInput, SolveResult } from '@rin/shared';
 import { CLIENT_HEADER_NAME, DEFAULT_CLIENT_KEY } from '@rin/shared';
 import { logger } from '../services/logger';
 
-export const DEFAULT_WORKER_URL = 'https://rin-solver.pujankhunt2412.workers.dev/solve';
+export const DEFAULT_WORKER_URL = 'https://rin-worker.pujankhunt.me/solve';
 
 export class WorkerClient {
   constructor(

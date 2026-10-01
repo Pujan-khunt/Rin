@@ -17,7 +17,7 @@ export default defineConfig({
     host_permissions: [
       'https://*.scaler.com/*',
       'https://scaler.com/*',
-      'https://rin-solver.pujankhunt2412.workers.dev/*',
+      'https://rin-worker.pujankhunt.me/*',
     ],
     browser_specific_settings: {
       gecko: {
