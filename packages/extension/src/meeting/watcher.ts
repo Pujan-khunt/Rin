@@ -32,6 +32,8 @@ export class MeetingWatcher {
    * Fast-paths if container is already mounted; otherwise observes the root container.
    */
   start(): void {
+    if (this.container?.isConnected) return;
+
     this.isStopped = false;
     this.cleanupObservers();
 
@@ -93,6 +95,7 @@ export class MeetingWatcher {
 
     this.container = container;
     this.callbacks.onEnter(container);
+    if (this.isStopped) return;
 
     if (this.unmountObserver) {
       this.unmountObserver.disconnect();

@@ -50,7 +50,6 @@ export class QuizObserver {
       this.lastEmittedElement = initialQuiz.containerElement;
       this.lastEmittedQuestion = initialQuiz.question;
       this.callbacks.onQuiz(initialQuiz);
-      return;
     }
 
     // Reactive path: Observe meeting container for quiz mounting & hydration

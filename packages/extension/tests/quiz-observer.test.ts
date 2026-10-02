@@ -61,6 +61,24 @@ describe('QuizObserver', () => {
     expect(emittedQuiz.options[0].text).toBe('Paris');
   });
 
+  it('emits fast-path quiz and continues observing so subsequent quizzes are also emitted', async () => {
+    meetingContainer.innerHTML = createHydratedQuizHtml('Quiz 1: What is 1+1?', ['2', '3']);
+
+    const observer = new QuizObserver(callbacks);
+    observer.start(meetingContainer);
+
+    expect(callbacks.onQuiz).toHaveBeenCalledTimes(1);
+    expect((callbacks.onQuiz as any).mock.calls[0][0].question).toBe('Quiz 1: What is 1+1?');
+
+    // Simulate next quiz appearing in the meeting container
+    meetingContainer.innerHTML = createHydratedQuizHtml('Quiz 2: What is 2*3?', ['5', '6']);
+
+    await new Promise((r) => setTimeout(r, 10));
+
+    expect(callbacks.onQuiz).toHaveBeenCalledTimes(2);
+    expect((callbacks.onQuiz as any).mock.calls[1][0].question).toBe('Quiz 2: What is 2*3?');
+  });
+
   it('reactively extracts quiz when question and choices hydrate asynchronously', async () => {
     // Initially: empty quiz shell mounted without question or choices
     const quizShell = document.createElement('div');
