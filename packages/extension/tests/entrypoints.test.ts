@@ -4,8 +4,8 @@ import backgroundEntry from '../src/entrypoints/background';
 import dronaEntry from '../src/entrypoints/drona.content';
 import { configStore } from '../src/config/store';
 import * as messengerModule from '../src/messaging/messenger';
-import * as lifecycleModule from '../src/detection/lifecycle';
-import * as observerModule from '../src/detection/observer';
+import { MeetingWatcher } from '../src/meeting/watcher';
+import { QuizObserver } from '../src/quiz/observer';
 import { HudActor } from '../src/actors/hud';
 import { ClickActor } from '../src/actors/click';
 import { WorkerClient } from '../src/solver/worker-client';
@@ -172,19 +172,17 @@ describe('Drona Content Script Entrypoint', () => {
   });
 
   it('registers meeting watcher and handles meeting lifecycle with HudActor', async () => {
-    let meetingCallback: (container: HTMLElement) => void = () => {};
-    const stopWatcher = vi.fn();
-    vi.spyOn(lifecycleModule, 'waitForMeeting').mockImplementation((cb) => {
-      meetingCallback = cb;
-      return stopWatcher;
+    let meetingCallbacks: any = null;
+    const watcherStartSpy = vi.spyOn(MeetingWatcher.prototype, 'start').mockImplementation(function (this: any) {
+      meetingCallbacks = this.callbacks;
     });
+    const watcherStopSpy = vi.spyOn(MeetingWatcher.prototype, 'stop');
 
-    let observerCallback: (quiz: any) => void = () => {};
-    const stopObserver = vi.fn();
-    vi.spyOn(observerModule, 'startQuizObserver').mockImplementation((_el, cb) => {
-      observerCallback = cb;
-      return stopObserver;
+    let quizCallbacks: any = null;
+    const observerStartSpy = vi.spyOn(QuizObserver.prototype, 'start').mockImplementation(function (this: any) {
+      quizCallbacks = this.callbacks;
     });
+    const observerStopSpy = vi.spyOn(QuizObserver.prototype, 'stop');
 
     vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
@@ -207,16 +205,13 @@ describe('Drona Content Script Entrypoint', () => {
 
     await dronaEntry.main(mockCtx as any);
 
-    expect(lifecycleModule.waitForMeeting).toHaveBeenCalled();
+    expect(watcherStartSpy).toHaveBeenCalledTimes(1);
 
     // Trigger meeting container discovery
     const fakeContainer = document.createElement('div');
-    await meetingCallback(fakeContainer);
+    meetingCallbacks.onEnter(fakeContainer);
 
-    expect(observerModule.startQuizObserver).toHaveBeenCalledWith(
-      fakeContainer,
-      expect.any(Function)
-    );
+    expect(observerStartSpy).toHaveBeenCalledWith(fakeContainer);
 
     // Trigger quiz detection
     const fakeQuiz = {
@@ -225,7 +220,7 @@ describe('Drona Content Script Entrypoint', () => {
       element: document.createElement('div'),
       optionElements: [document.createElement('div'), document.createElement('div')],
     };
-    await observerCallback(fakeQuiz);
+    await quizCallbacks.onQuiz(fakeQuiz);
 
     expect(messengerModule.sendToBackground).toHaveBeenCalledWith({
       type: 'SOLVE_QUIZ',
@@ -238,22 +233,20 @@ describe('Drona Content Script Entrypoint', () => {
 
     // Invalidation cleanup
     invalidatedCallbacks.forEach((cb) => cb());
-    expect(stopObserver).toHaveBeenCalled();
-    expect(stopWatcher).toHaveBeenCalled();
+    expect(watcherStopSpy).toHaveBeenCalled();
+    expect(observerStopSpy).toHaveBeenCalled();
     expect(cleanupSpy).toHaveBeenCalled();
   });
 
   it('does not solve or act when extension is disabled in config', async () => {
-    let meetingCallback: (container: HTMLElement) => void = () => {};
-    vi.spyOn(lifecycleModule, 'waitForMeeting').mockImplementation((cb) => {
-      meetingCallback = cb;
-      return vi.fn();
+    let meetingCallbacks: any = null;
+    vi.spyOn(MeetingWatcher.prototype, 'start').mockImplementation(function (this: any) {
+      meetingCallbacks = this.callbacks;
     });
 
-    let observerCallback: (quiz: any) => Promise<void> = async () => {};
-    vi.spyOn(observerModule, 'startQuizObserver').mockImplementation((_el, cb: any) => {
-      observerCallback = cb;
-      return vi.fn();
+    let quizCallbacks: any = null;
+    vi.spyOn(QuizObserver.prototype, 'start').mockImplementation(function (this: any) {
+      quizCallbacks = this.callbacks;
     });
 
     const sendSpy = vi.spyOn(messengerModule, 'sendToBackground');
@@ -264,23 +257,21 @@ describe('Drona Content Script Entrypoint', () => {
     });
 
     await dronaEntry.main(mockCtx as any);
-    await meetingCallback(document.createElement('div'));
-    await observerCallback({ question: 'Test Q', options: [] });
+    meetingCallbacks.onEnter(document.createElement('div'));
+    await quizCallbacks.onQuiz({ question: 'Test Q', options: [] });
 
     expect(sendSpy).not.toHaveBeenCalled();
   });
 
   it('uses ClickActor when actorMode is auto', async () => {
-    let meetingCallback: (container: HTMLElement) => void = () => {};
-    vi.spyOn(lifecycleModule, 'waitForMeeting').mockImplementation((cb) => {
-      meetingCallback = cb;
-      return vi.fn();
+    let meetingCallbacks: any = null;
+    vi.spyOn(MeetingWatcher.prototype, 'start').mockImplementation(function (this: any) {
+      meetingCallbacks = this.callbacks;
     });
 
-    let observerCallback: (quiz: any) => Promise<void> = async () => {};
-    vi.spyOn(observerModule, 'startQuizObserver').mockImplementation((_el, cb: any) => {
-      observerCallback = cb;
-      return vi.fn();
+    let quizCallbacks: any = null;
+    vi.spyOn(QuizObserver.prototype, 'start').mockImplementation(function (this: any) {
+      quizCallbacks = this.callbacks;
     });
 
     vi.spyOn(configStore, 'load').mockResolvedValue({
@@ -300,8 +291,8 @@ describe('Drona Content Script Entrypoint', () => {
     });
 
     await dronaEntry.main(mockCtx as any);
-    await meetingCallback(document.createElement('div'));
-    await observerCallback({
+    meetingCallbacks.onEnter(document.createElement('div'));
+    await quizCallbacks.onQuiz({
       question: 'Auto Q',
       options: ['X', 'Y'],
       element: document.createElement('div'),
@@ -312,16 +303,14 @@ describe('Drona Content Script Entrypoint', () => {
   });
 
   it('reacts dynamically to storage changes and hot-swaps between HudActor and ClickActor', async () => {
-    let meetingCallback: (container: HTMLElement) => void = () => {};
-    vi.spyOn(lifecycleModule, 'waitForMeeting').mockImplementation((cb) => {
-      meetingCallback = cb;
-      return vi.fn();
+    let meetingCallbacks: any = null;
+    vi.spyOn(MeetingWatcher.prototype, 'start').mockImplementation(function (this: any) {
+      meetingCallbacks = this.callbacks;
     });
 
-    let observerCallback: (quiz: any) => Promise<void> = async () => {};
-    vi.spyOn(observerModule, 'startQuizObserver').mockImplementation((_el, cb: any) => {
-      observerCallback = cb;
-      return vi.fn();
+    let quizCallbacks: any = null;
+    vi.spyOn(QuizObserver.prototype, 'start').mockImplementation(function (this: any) {
+      quizCallbacks = this.callbacks;
     });
 
     // Start with assisted mode
@@ -356,7 +345,7 @@ describe('Drona Content Script Entrypoint', () => {
     });
 
     await dronaEntry.main(mockCtx as any);
-    await meetingCallback(document.createElement('div'));
+    meetingCallbacks.onEnter(document.createElement('div'));
 
     const fakeQuiz = {
       question: 'Q1',
@@ -366,7 +355,7 @@ describe('Drona Content Script Entrypoint', () => {
     };
 
     // Quiz 1 under assisted mode
-    await observerCallback(fakeQuiz);
+    await quizCallbacks.onQuiz(fakeQuiz);
     expect(hudActSpy).toHaveBeenCalledTimes(1);
     expect(clickActSpy).not.toHaveBeenCalled();
 
@@ -381,33 +370,18 @@ describe('Drona Content Script Entrypoint', () => {
     );
 
     // Quiz 2 under auto mode
-    await observerCallback(fakeQuiz);
+    await quizCallbacks.onQuiz(fakeQuiz);
     expect(clickActSpy).toHaveBeenCalledTimes(1);
   });
 
   it('handles multiple consecutive meetings in the same session without page reload', async () => {
-    let meetingCallback: (container: HTMLElement) => void = () => {};
-    let unmountCallback: () => void = () => {};
-    const stopWatcher = vi.fn();
-    const stopUnmountWatcher = vi.fn();
-
-    vi.spyOn(lifecycleModule, 'waitForMeeting').mockImplementation((cb) => {
-      meetingCallback = cb;
-      return stopWatcher;
+    let meetingCallbacks: any = null;
+    const watcherStartSpy = vi.spyOn(MeetingWatcher.prototype, 'start').mockImplementation(function (this: any) {
+      meetingCallbacks = this.callbacks;
     });
 
-    vi.spyOn(lifecycleModule, 'watchMeetingUnmount').mockImplementation((_container, cb) => {
-      unmountCallback = cb;
-      return stopUnmountWatcher;
-    });
-
-    const stopObserver1 = vi.fn();
-    const stopObserver2 = vi.fn();
-    let observerCount = 0;
-    vi.spyOn(observerModule, 'startQuizObserver').mockImplementation(() => {
-      observerCount++;
-      return observerCount === 1 ? stopObserver1 : stopObserver2;
-    });
+    const observerStartSpy = vi.spyOn(QuizObserver.prototype, 'start').mockImplementation(() => {});
+    const observerStopSpy = vi.spyOn(QuizObserver.prototype, 'stop').mockImplementation(() => {});
 
     vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
@@ -415,24 +389,20 @@ describe('Drona Content Script Entrypoint', () => {
     });
 
     await dronaEntry.main(mockCtx as any);
-    expect(lifecycleModule.waitForMeeting).toHaveBeenCalledTimes(1);
+    expect(watcherStartSpy).toHaveBeenCalledTimes(1);
 
     // 1. Meeting 1 joins
     const meeting1 = document.createElement('div');
-    await meetingCallback(meeting1);
-    expect(observerModule.startQuizObserver).toHaveBeenCalledTimes(1);
-    expect(lifecycleModule.watchMeetingUnmount).toHaveBeenCalledWith(meeting1, expect.any(Function));
+    meetingCallbacks.onEnter(meeting1);
+    expect(observerStartSpy).toHaveBeenCalledWith(meeting1);
 
     // 2. Meeting 1 leaves
-    unmountCallback();
-    expect(stopObserver1).toHaveBeenCalled();
-    // Meeting watcher must be re-armed
-    expect(lifecycleModule.waitForMeeting).toHaveBeenCalledTimes(2);
+    meetingCallbacks.onLeave();
+    expect(observerStopSpy).toHaveBeenCalledTimes(1);
 
-    // 3. Meeting 2 joins in same tab
+    // 3. Meeting 2 joins in same session
     const meeting2 = document.createElement('div');
-    await meetingCallback(meeting2);
-    expect(observerModule.startQuizObserver).toHaveBeenCalledTimes(2);
-    expect(lifecycleModule.watchMeetingUnmount).toHaveBeenCalledWith(meeting2, expect.any(Function));
+    meetingCallbacks.onEnter(meeting2);
+    expect(observerStartSpy).toHaveBeenCalledWith(meeting2);
   });
 });

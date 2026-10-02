@@ -2,7 +2,8 @@ import { defineContentScript } from 'wxt/utils/define-content-script';
 import { configStore } from '../config/store';
 import { createActor } from '../actors/factory';
 import { QuizWorkflowCoordinator } from '../services/quiz-workflow.service';
-import { MeetingCoordinator } from '../services/meeting-coordinator.service';
+import { QuizObserver } from '../quiz/observer';
+import { MeetingWatcher } from '../meeting/watcher';
 import { setupDevSnapshotHotkey } from '../diagnostics/hotkeys';
 import { logger } from '../services/logger';
 
@@ -39,14 +40,21 @@ export default defineContentScript({
       workflow.setActor(createActor(newConfig.actorMode));
     });
 
-    // 4. Initialize Meeting Session Coordinator
-    const meetingCoordinator = new MeetingCoordinator({
+    // 4. Initialize Symmetrical Lifecycle Watchers
+    const quizObserver = new QuizObserver({
       onQuiz: (quiz) => workflow.processQuiz(quiz),
-      onMeetingLeave: () => workflow.cleanup(),
     });
 
-    logger.debug('ContentScript', 'Starting meeting coordinator...');
-    meetingCoordinator.start();
+    const meetingWatcher = new MeetingWatcher({
+      onEnter: (meetingContainer) => quizObserver.start(meetingContainer),
+      onLeave: () => {
+        quizObserver.stop();
+        workflow.cleanup();
+      },
+    });
+
+    logger.debug('ContentScript', 'Starting meeting watcher...');
+    meetingWatcher.start();
 
     // 5. Dev-Only DOM Snapshot Hotkey (Alt+Shift+S / Ctrl+Alt+S)
     if (import.meta.env.DEV) {
@@ -62,7 +70,8 @@ export default defineContentScript({
     ctx.onInvalidated(() => {
       logger.warn('ContentScript', 'Context invalidated or reloaded, cleaning up...');
       unsubscribeConfig();
-      meetingCoordinator.stop();
+      meetingWatcher.stop();
+      quizObserver.stop();
       workflow.cleanup();
     });
   },
