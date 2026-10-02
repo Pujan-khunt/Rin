@@ -12,6 +12,7 @@ export interface QuizData {
   alreadyAnswered: boolean;
   detectedAt: number;
   rawHtml: string;
+  optionElements?: HTMLElement[];
 }
 
 export interface QuizObserverCallbacks {

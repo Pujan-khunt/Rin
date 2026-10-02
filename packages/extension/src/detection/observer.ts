@@ -1,5 +1,5 @@
 import { SELECTORS } from '../config/selectors';
-import { extractQuiz } from './extractor';
+import { extractQuiz } from '../quiz/extractor';
 import { observeElement } from '../utils/dom';
 import { logger } from '../services/logger';
 import type { QuizData } from '../interfaces/quiz';
