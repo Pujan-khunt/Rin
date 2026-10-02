@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { logger, formatTimestamp, prettyPrintLog, isBackgroundContext } from '../src/services/logger';
+import { logger, formatTimestamp, prettyPrintLog, isBackgroundContext } from '../src/messaging/logger';
 
 describe('Logger Service', () => {
   let consoleSpy: Record<string, ReturnType<typeof vi.spyOn>>;

@@ -1,5 +1,5 @@
-import type { ContentMessage, BackgroundResponse } from '../interfaces/messages';
-import { logger } from '../services/logger';
+import type { ContentMessage, BackgroundResponse } from './types';
+import { logger } from './logger';
 
 export async function sendToBackground(message: ContentMessage): Promise<BackgroundResponse> {
   if (import.meta.env.DEV && message.type !== 'LOG') {

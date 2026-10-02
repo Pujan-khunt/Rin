@@ -128,6 +128,75 @@ describe('Background Entrypoint', () => {
       payload: { actorMode: 'auto', enabled: true },
     });
   });
+
+  it('handles LOG successfully and responds with ACK', async () => {
+    backgroundEntry.main();
+
+    const sendResponse = vi.fn();
+    const keepChannel = messageListener(
+      {
+        type: 'LOG',
+        payload: {
+          level: 'info',
+          tag: 'TestTag',
+          message: 'Entrypoint log test',
+          timestamp: Date.now(),
+        },
+      },
+      {},
+      sendResponse
+    );
+
+    expect(keepChannel).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({ type: 'ACK' });
+    });
+  });
+
+  it('ignores unknown message types and returns false', () => {
+    backgroundEntry.main();
+
+    const sendResponse = vi.fn();
+    const handled = messageListener({ type: 'UNKNOWN_MSG' as any }, {}, sendResponse);
+
+    expect(handled).toBe(false);
+    expect(sendResponse).not.toHaveBeenCalled();
+  });
+
+  it('overrides payload model with config.model in DEV mode', async () => {
+    vi.spyOn(configStore, 'load').mockResolvedValue({
+      actorMode: 'auto',
+      enabled: true,
+      model: 'gemini-1.5-pro',
+    });
+    const solveSpy = vi.spyOn(WorkerClient.prototype, 'solve').mockResolvedValue({
+      chosenIndex: 0,
+      chosenLabel: 'A',
+      source: 'llm',
+      latencyMs: 50,
+    });
+
+    backgroundEntry.main();
+
+    const sendResponse = vi.fn();
+    messageListener(
+      {
+        type: 'SOLVE_QUIZ',
+        payload: { question: 'Q', options: ['A'], model: 'payload-model' },
+      },
+      {},
+      sendResponse
+    );
+
+    await vi.waitFor(() => {
+      expect(solveSpy).toHaveBeenCalledWith(
+        expect.objectContaining({
+          model: 'gemini-1.5-pro',
+        })
+      );
+    });
+  });
 });
 
 describe('Drona Content Script Entrypoint', () => {

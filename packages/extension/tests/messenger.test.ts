@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { sendToBackground } from '../src/messaging/messenger';
-import type { ContentMessage, BackgroundResponse } from '../src/interfaces/messages';
+import type { ContentMessage, BackgroundResponse } from '../src/messaging/types';
 
 describe('Messaging Bridge (sendToBackground)', () => {
   beforeEach(() => {
