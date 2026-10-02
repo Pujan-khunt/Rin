@@ -1,4 +1,4 @@
-import type { Actor, ActPayload, ActorMode } from '../interfaces/actor';
+import type { Actor, ActPayload, ActorMode } from './types';
 import { logger } from '../services/logger';
 
 interface ModifiedElement {
@@ -34,7 +34,9 @@ export class HudActor implements Actor {
     // is highlighted at any given time. This achieves idempotency.
     this.cleanup();
 
-    const target = payload.quiz.optionElements[payload.result.chosenIndex];
+    const target =
+      (payload.quiz.options[payload.result.chosenIndex] as any)?.element ??
+      (payload.quiz as any).optionElements?.[payload.result.chosenIndex];
     if (!target) {
       logger.warn(
         'HudActor',
@@ -59,8 +61,8 @@ export class HudActor implements Actor {
 
     // Make all inner child elements (e.g. .choice__text, .md-renderer) transparent
     // so any opaque white backgrounds do not obscure the light purple highlight.
-    const children = target.querySelectorAll<HTMLElement>('*');
-    children.forEach((child) => {
+    const children = Array.from(target.querySelectorAll('*')) as HTMLElement[];
+    children.forEach((child: HTMLElement) => {
       this.modifiedChildren.push({
         element: child,
         originalCssText: child.style.cssText,
@@ -88,4 +90,3 @@ export class HudActor implements Actor {
     this.modifiedChildren = [];
   }
 }
-

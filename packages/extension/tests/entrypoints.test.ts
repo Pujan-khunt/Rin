@@ -6,8 +6,8 @@ import * as configModule from '../src/config/config';
 import * as messengerModule from '../src/messaging/messenger';
 import * as lifecycleModule from '../src/detection/lifecycle';
 import * as observerModule from '../src/detection/observer';
-import { HudActor } from '../src/actors/hud-actor';
-import { ClickActor } from '../src/actors/click-actor';
+import { HudActor } from '../src/actors/hud';
+import { ClickActor } from '../src/actors/click';
 import { WorkerClient } from '../src/solver/worker-client';
 
 describe('Background Entrypoint', () => {

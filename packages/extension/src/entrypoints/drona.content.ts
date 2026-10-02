@@ -1,6 +1,6 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
 import { ConfigService } from '../services/config.service';
-import { ActorFactory } from '../actors/actor-factory';
+import { createActor } from '../actors/factory';
 import { QuizWorkflowCoordinator } from '../services/quiz-workflow.service';
 import { MeetingCoordinator } from '../services/meeting-coordinator.service';
 import { setupDevSnapshotHotkey } from '../detection/recorder';
@@ -29,7 +29,7 @@ export default defineContentScript({
 
     // 2. Initialize Workflow Coordinator with Initial Actor
     const workflow = new QuizWorkflowCoordinator(
-      ActorFactory.create(initialConfig.actorMode),
+      createActor(initialConfig.actorMode),
       initialConfig
     );
 
@@ -37,7 +37,7 @@ export default defineContentScript({
     const unsubscribeConfig = configService.subscribe((newConfig) => {
       logger.info('ContentScript', 'Settings updated in real-time', newConfig);
       workflow.setConfig(newConfig);
-      workflow.setActor(ActorFactory.create(newConfig.actorMode));
+      workflow.setActor(createActor(newConfig.actorMode));
     });
 
     // 4. Initialize Meeting Session Coordinator

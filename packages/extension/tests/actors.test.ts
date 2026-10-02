@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { HudActor } from '../src/actors/hud-actor';
-import { ClickActor } from '../src/actors/click-actor';
-import { ActorFactory } from '../src/actors/actor-factory';
-import type { QuizData } from '../src/interfaces/quiz';
+import { HudActor } from '../src/actors/hud';
+import { ClickActor } from '../src/actors/click';
+import { createActor, ACTOR_STRATEGIES } from '../src/actors/factory';
+import type { QuizData } from '../src/quiz/types';
 import type { SolveResult } from '@rin/shared';
 
 describe('Actor Implementations', () => {
@@ -31,10 +31,9 @@ describe('Actor Implementations', () => {
     mockQuiz = {
       question: 'Test Question',
       options: [
-        { label: 'A', text: 'Option A', index: 0 },
-        { label: 'B', text: 'Option B', index: 1 },
+        { label: 'A', text: 'Option A', index: 0, element: mockOption },
+        { label: 'B', text: 'Option B', index: 1, element: mockOption2 },
       ],
-      optionElements: [mockOption, mockOption2],
       containerElement: document.body,
       rawHtml: '',
       detectedAt: 0,
@@ -65,6 +64,27 @@ describe('Actor Implementations', () => {
       actor.cleanup();
       expect(mockOption.style.backgroundColor).toBe('rgb(255, 255, 255)');
       expect(mockOption.style.transition).toBe('opacity 0.2s ease');
+    });
+
+    it('supports legacy quiz format with optionElements fallback', async () => {
+      const legacyQuiz = {
+        question: 'Legacy Question',
+        options: [
+          { label: 'A', text: 'Option A', index: 0 },
+        ],
+        optionElements: [mockOption],
+        containerElement: document.body,
+        rawHtml: '',
+        detectedAt: 0,
+        alreadyAnswered: false,
+      } as any;
+
+      const actor = new HudActor();
+      await actor.act({ quiz: legacyQuiz, result: mockResult });
+
+      expect(mockOption.style.backgroundColor).toBe('rgb(232, 213, 245)');
+      actor.cleanup();
+      expect(mockOption.style.backgroundColor).toBe('rgb(255, 255, 255)');
     });
 
     it('restores empty transition if element had no initial transition style', async () => {
@@ -140,6 +160,31 @@ describe('Actor Implementations', () => {
       expect(eventsDispatched).toEqual(['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']);
     });
 
+    it('supports legacy quiz format with optionElements fallback', async () => {
+      const legacyQuiz = {
+        question: 'Legacy Question',
+        options: [
+          { label: 'A', text: 'Option A', index: 0 },
+        ],
+        optionElements: [mockOption],
+        containerElement: document.body,
+        rawHtml: '',
+        detectedAt: 0,
+        alreadyAnswered: false,
+      } as any;
+
+      const actor = new ClickActor();
+      const eventsDispatched: string[] = [];
+
+      ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach((type) => {
+        mockOption.addEventListener(type, () => eventsDispatched.push(type));
+      });
+
+      await actor.act({ quiz: legacyQuiz, result: mockResult });
+
+      expect(eventsDispatched).toEqual(['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']);
+    });
+
     it('cleanup is a no-op and does not throw', () => {
       const actor = new ClickActor();
       expect(() => actor.cleanup()).not.toThrow();
@@ -156,22 +201,31 @@ describe('Actor Implementations', () => {
     });
   });
 
-  describe('ActorFactory', () => {
+  describe('createActor', () => {
     it('creates HudActor for assisted mode', () => {
-      const actor = ActorFactory.create('assisted');
+      const actor = createActor('assisted');
       expect(actor).toBeInstanceOf(HudActor);
       expect(actor.mode).toBe('assisted');
     });
 
     it('creates ClickActor for auto mode', () => {
-      const actor = ActorFactory.create('auto');
+      const actor = createActor('auto');
       expect(actor).toBeInstanceOf(ClickActor);
       expect(actor.mode).toBe('auto');
     });
 
     it('defaults to HudActor for unknown/fallback modes', () => {
-      const actor = ActorFactory.create('assisted' as any);
+      const actor = createActor('assisted' as any);
       expect(actor).toBeInstanceOf(HudActor);
+
+      const fallbackActor = createActor('unknown_mode' as any);
+      expect(fallbackActor).toBeInstanceOf(HudActor);
+      expect(fallbackActor.mode).toBe('assisted');
+    });
+
+    it('exposes ACTOR_STRATEGIES record mapping modes to strategy classes', () => {
+      expect(ACTOR_STRATEGIES.assisted).toBe(HudActor);
+      expect(ACTOR_STRATEGIES.auto).toBe(ClickActor);
     });
   });
 });
