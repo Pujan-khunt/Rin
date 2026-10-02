@@ -120,12 +120,11 @@ describe('Background Entrypoint', () => {
 
     expect(keepChannel).toBe(true);
 
-    await Promise.resolve();
-    await Promise.resolve();
-
-    expect(sendResponse).toHaveBeenCalledWith({
-      type: 'CONFIG',
-      payload: { actorMode: 'auto', enabled: true },
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({
+        type: 'CONFIG',
+        payload: { actorMode: 'auto', enabled: true },
+      });
     });
   });
 

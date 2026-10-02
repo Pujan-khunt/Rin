@@ -21,11 +21,15 @@ export class MessageRouter {
         const handler = message?.type ? this.handlers.get(message.type) : undefined;
         if (!handler) return false;
 
-        const payload = message && typeof message === 'object' && 'payload' in message ? message.payload : undefined;
-        handler(payload)
+        const payload = 'payload' in message ? message.payload : undefined;
+        Promise.resolve()
+          .then(() => handler(payload))
           .then(sendResponse)
           .catch((err) => {
-            logger.error('MessageRouter', `Error handling message ${message.type}: ${(err as Error)?.message ?? err}`);
+            logger.error(
+              'MessageRouter',
+              `Error handling message ${message.type}: ${(err as Error)?.message ?? err}`
+            );
             sendResponse({
               type: 'ERROR',
               payload: { message: (err as Error)?.message ?? String(err) },

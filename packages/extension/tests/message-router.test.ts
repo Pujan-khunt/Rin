@@ -77,9 +77,9 @@ describe('MessageRouter', () => {
     );
 
     expect(keepOpen).toBe(true);
-    expect(solveQuizHandler).toHaveBeenCalledWith(inputQuiz);
 
     await vi.waitFor(() => {
+      expect(solveQuizHandler).toHaveBeenCalledWith(inputQuiz);
       expect(sendResponse).toHaveBeenCalledWith({
         type: 'QUIZ_SOLVED',
         payload: mockResult,
@@ -173,6 +173,40 @@ describe('MessageRouter', () => {
         payload: { message: 'Unexpected string failure' },
       });
     });
+  });
+
+  it('catches synchronous exceptions thrown inside handler and returns ERROR response', async () => {
+    const router = new MessageRouter();
+    const loggerErrorSpy = vi.spyOn(logger, 'error').mockImplementation(() => {});
+
+    router.register('SOLVE_QUIZ', (() => {
+      throw new Error('sync error');
+    }) as any);
+    router.listen();
+
+    const sendResponse = vi.fn();
+    const keepOpen = messageListener(
+      {
+        type: 'SOLVE_QUIZ',
+        payload: { question: 'fail?', options: [{ label: 'A', text: 'a' }] },
+      },
+      {},
+      sendResponse
+    );
+
+    expect(keepOpen).toBe(true);
+
+    await vi.waitFor(() => {
+      expect(sendResponse).toHaveBeenCalledWith({
+        type: 'ERROR',
+        payload: { message: 'sync error' },
+      });
+    });
+
+    expect(loggerErrorSpy).toHaveBeenCalledWith(
+      'MessageRouter',
+      expect.stringContaining('sync error')
+    );
   });
 
   it('returns false and does not call sendResponse for unregistered or unknown message types', () => {
