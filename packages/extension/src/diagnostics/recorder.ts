@@ -78,7 +78,10 @@ export function triggerSnapshotDownload(html: string, filename: string): void {
   }
 }
 
-async function saveSnapshotToStorage(snapshot: QuizSnapshot): Promise<void> {
+/**
+ * Persists the snapshot to extension local storage.
+ */
+export async function saveSnapshotToStorage(snapshot: QuizSnapshot): Promise<void> {
   try {
     if (typeof browser !== 'undefined' && browser.storage?.local) {
       const stored = await browser.storage.local.get('rinSnapshots');
@@ -91,7 +94,10 @@ async function saveSnapshotToStorage(snapshot: QuizSnapshot): Promise<void> {
   }
 }
 
-function createManualSnapshot(): QuizSnapshot {
+/**
+ * Creates a snapshot object capturing the current DOM state manually.
+ */
+export function createManualSnapshot(): QuizSnapshot {
   const rootHtml = captureRootHtml();
   return {
     id: `snapshot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
@@ -136,42 +142,4 @@ export async function recordManualSnapshot(): Promise<QuizSnapshot> {
   );
   await saveSnapshotToStorage(snapshot);
   return snapshot;
-}
-
-/**
- * Sets up a dev-only hotkey listener on the window.
- * Listens for Alt+Shift+S (or Ctrl+Alt+S) to capture a full DOM snapshot immediately.
- * Returns a teardown function to unbind the listener.
- */
-export function setupDevSnapshotHotkey(
-  onCapture?: (snapshot: QuizSnapshot) => void
-): () => void {
-  if (typeof window === 'undefined') {
-    return () => {};
-  }
-
-  const handleKeyDown = (event: KeyboardEvent) => {
-    const isSKey = event.key?.toLowerCase() === 's' || event.code === 'KeyS';
-    const isAltShiftS = event.altKey && event.shiftKey && isSKey;
-    const isCtrlAltS = event.ctrlKey && event.altKey && isSKey;
-
-    if (isAltShiftS || isCtrlAltS) {
-      event.preventDefault();
-      event.stopPropagation();
-
-      const snapshot = createManualSnapshot();
-      triggerSnapshotDownload(
-        formatDownloadableHtml(snapshot.rootHtml ?? snapshot.rawHtml, `Rin Manual Snapshot - ${snapshot.timestamp}`),
-        `rin-manual-snapshot-${snapshot.timestamp}.html`
-      );
-      saveSnapshotToStorage(snapshot).catch(() => {});
-      onCapture?.(snapshot);
-    }
-  };
-
-  window.addEventListener('keydown', handleKeyDown, true);
-
-  return () => {
-    window.removeEventListener('keydown', handleKeyDown, true);
-  };
 }

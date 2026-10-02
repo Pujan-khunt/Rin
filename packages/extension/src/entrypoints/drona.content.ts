@@ -3,7 +3,7 @@ import { configStore } from '../config/store';
 import { createActor } from '../actors/factory';
 import { QuizWorkflowCoordinator } from '../services/quiz-workflow.service';
 import { MeetingCoordinator } from '../services/meeting-coordinator.service';
-import { setupDevSnapshotHotkey } from '../detection/recorder';
+import { setupDevSnapshotHotkey } from '../diagnostics/hotkeys';
 import { logger } from '../services/logger';
 
 /**

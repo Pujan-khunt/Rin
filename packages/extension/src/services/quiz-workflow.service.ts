@@ -1,5 +1,5 @@
 import { sendToBackground } from '../messaging/messenger';
-import { recordQuizSnapshot } from '../detection/recorder';
+import { recordQuizSnapshot } from '../diagnostics/recorder';
 import { logger } from './logger';
 import type { Actor } from '../interfaces/actor';
 import type { QuizData } from '../interfaces/quiz';

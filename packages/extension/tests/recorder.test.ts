@@ -3,10 +3,10 @@ import { JSDOM } from 'jsdom';
 import {
   recordQuizSnapshot,
   recordManualSnapshot,
-  setupDevSnapshotHotkey,
   triggerSnapshotDownload,
   captureRootHtml,
-} from '../src/detection/recorder';
+} from '../src/diagnostics/recorder';
+import { setupDevSnapshotHotkey } from '../src/diagnostics/hotkeys';
 import type { QuizData } from '../src/interfaces/quiz';
 
 describe('Dev-Only DOM Snapshot Recorder', () => {

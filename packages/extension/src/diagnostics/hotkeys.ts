@@ -1,0 +1,45 @@
+import type { QuizSnapshot } from './recorder';
+import {
+  createManualSnapshot,
+  formatDownloadableHtml,
+  triggerSnapshotDownload,
+  saveSnapshotToStorage,
+} from './recorder';
+
+/**
+ * Sets up a dev-only hotkey listener on the window.
+ * Listens for Alt+Shift+S (or Ctrl+Alt+S) to capture a full DOM snapshot immediately.
+ * Returns a teardown function to unbind the listener.
+ */
+export function setupDevSnapshotHotkey(
+  onCapture?: (snapshot: QuizSnapshot) => void
+): () => void {
+  if (typeof window === 'undefined') {
+    return () => {};
+  }
+
+  const handleKeyDown = (event: KeyboardEvent) => {
+    const isSKey = event.key?.toLowerCase() === 's' || event.code === 'KeyS';
+    const isAltShiftS = event.altKey && event.shiftKey && isSKey;
+    const isCtrlAltS = event.ctrlKey && event.altKey && isSKey;
+
+    if (isAltShiftS || isCtrlAltS) {
+      event.preventDefault();
+      event.stopPropagation();
+
+      const snapshot = createManualSnapshot();
+      triggerSnapshotDownload(
+        formatDownloadableHtml(snapshot.rootHtml ?? snapshot.rawHtml, `Rin Manual Snapshot - ${snapshot.timestamp}`),
+        `rin-manual-snapshot-${snapshot.timestamp}.html`
+      );
+      saveSnapshotToStorage(snapshot).catch(() => {});
+      onCapture?.(snapshot);
+    }
+  };
+
+  window.addEventListener('keydown', handleKeyDown, true);
+
+  return () => {
+    window.removeEventListener('keydown', handleKeyDown, true);
+  };
+}
