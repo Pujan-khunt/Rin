@@ -1,6 +1,6 @@
 import { SELECTORS } from '../dom/selectors';
 import { findSelfOrDescendant } from '../dom/utils';
-import { logger } from '../services/logger';
+import { logger } from '../messaging/logger';
 import type { MeetingCallbacks } from './types';
 
 /**

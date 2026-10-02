@@ -1,4 +1,4 @@
-import { logger } from '../services/logger';
+import { logger } from '../messaging/logger';
 import { DEFAULT_CONFIG } from './defaults';
 import type { ConfigChangeListener, RinConfig } from './types';
 

@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConfigStore, configStore } from '../src/config/store';
 import { DEFAULT_CONFIG, DEFAULT_MODEL } from '../src/config/defaults';
-import { SELECTORS } from '../src/config/selectors';
+import { SELECTORS } from '../src/dom/selectors';
 
 describe('ConfigStore', () => {
   let store: ConfigStore;

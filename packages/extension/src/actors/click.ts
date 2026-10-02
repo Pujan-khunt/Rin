@@ -1,5 +1,5 @@
 import type { Actor, ActPayload, ActorMode } from './types';
-import { logger } from '../services/logger';
+import { logger } from '../messaging/logger';
 
 /**
  * Dispatches a complete 5-stage synthetic interaction sequence on the target element.
@@ -31,9 +31,7 @@ export class ClickActor implements Actor {
    * the synthetic click sequence.
    */
   async act(payload: ActPayload): Promise<void> {
-    const target =
-      (payload.quiz.options[payload.result.chosenIndex] as any)?.element ??
-      (payload.quiz as any).optionElements?.[payload.result.chosenIndex];
+    const target = payload.quiz.options[payload.result.chosenIndex]?.element;
     if (!target) {
       logger.warn(
         'ClickActor',

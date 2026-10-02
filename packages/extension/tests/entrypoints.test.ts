@@ -278,22 +278,39 @@ describe('Drona Content Script Entrypoint', () => {
 
     // Trigger meeting container discovery
     const fakeContainer = document.createElement('div');
+    document.body.appendChild(fakeContainer);
     meetingCallbacks.onEnter(fakeContainer);
 
     expect(observerStartSpy).toHaveBeenCalledWith(fakeContainer);
 
     // Trigger quiz detection
+    const quizContainer = document.createElement('div');
+    fakeContainer.appendChild(quizContainer);
+    const fakeOption1 = { label: 'A', text: 'Option A', index: 0, element: document.createElement('div') };
+    const fakeOption2 = { label: 'B', text: 'Option B', index: 1, element: document.createElement('div') };
+    quizContainer.appendChild(fakeOption1.element);
+    quizContainer.appendChild(fakeOption2.element);
+
     const fakeQuiz = {
       question: 'Test question',
-      options: ['A', 'B'],
-      element: document.createElement('div'),
-      optionElements: [document.createElement('div'), document.createElement('div')],
+      options: [fakeOption1, fakeOption2],
+      containerElement: quizContainer,
+      rawHtml: '',
+      detectedAt: Date.now(),
+      alreadyAnswered: false,
     };
     await quizCallbacks.onQuiz(fakeQuiz);
 
     expect(messengerModule.sendToBackground).toHaveBeenCalledWith({
       type: 'SOLVE_QUIZ',
-      payload: { question: 'Test question', options: ['A', 'B'] },
+      payload: {
+        question: 'Test question',
+        options: [
+          { label: 'A', text: 'Option A', index: 0 },
+          { label: 'B', text: 'Option B', index: 1 },
+        ],
+        model: undefined,
+      },
     });
     expect(actSpy).toHaveBeenCalledWith({
       quiz: fakeQuiz,
@@ -326,8 +343,17 @@ describe('Drona Content Script Entrypoint', () => {
     });
 
     await dronaEntry.main(mockCtx as any);
-    meetingCallbacks.onEnter(document.createElement('div'));
-    await quizCallbacks.onQuiz({ question: 'Test Q', options: [] });
+    const fakeContainer = document.createElement('div');
+    document.body.appendChild(fakeContainer);
+    meetingCallbacks.onEnter(fakeContainer);
+    await quizCallbacks.onQuiz({
+      question: 'Test Q',
+      options: [],
+      containerElement: fakeContainer,
+      rawHtml: '',
+      detectedAt: Date.now(),
+      alreadyAnswered: false,
+    });
 
     expect(sendSpy).not.toHaveBeenCalled();
   });
@@ -360,12 +386,24 @@ describe('Drona Content Script Entrypoint', () => {
     });
 
     await dronaEntry.main(mockCtx as any);
-    meetingCallbacks.onEnter(document.createElement('div'));
+    const fakeContainer = document.createElement('div');
+    document.body.appendChild(fakeContainer);
+    meetingCallbacks.onEnter(fakeContainer);
+
+    const quizContainer = document.createElement('div');
+    fakeContainer.appendChild(quizContainer);
+    const optX = { label: 'X', text: 'Choice X', index: 0, element: document.createElement('div') };
+    const optY = { label: 'Y', text: 'Choice Y', index: 1, element: document.createElement('div') };
+    quizContainer.appendChild(optX.element);
+    quizContainer.appendChild(optY.element);
+
     await quizCallbacks.onQuiz({
       question: 'Auto Q',
-      options: ['X', 'Y'],
-      element: document.createElement('div'),
-      optionElements: [document.createElement('div'), document.createElement('div')],
+      options: [optX, optY],
+      containerElement: quizContainer,
+      rawHtml: '',
+      detectedAt: Date.now(),
+      alreadyAnswered: false,
     });
 
     expect(clickActSpy).toHaveBeenCalled();
@@ -414,13 +452,24 @@ describe('Drona Content Script Entrypoint', () => {
     });
 
     await dronaEntry.main(mockCtx as any);
-    meetingCallbacks.onEnter(document.createElement('div'));
+    const fakeContainer = document.createElement('div');
+    document.body.appendChild(fakeContainer);
+    meetingCallbacks.onEnter(fakeContainer);
+
+    const quizContainer = document.createElement('div');
+    fakeContainer.appendChild(quizContainer);
+    const fakeOpt1 = { label: 'A', text: 'Option A', index: 0, element: document.createElement('div') };
+    const fakeOpt2 = { label: 'B', text: 'Option B', index: 1, element: document.createElement('div') };
+    quizContainer.appendChild(fakeOpt1.element);
+    quizContainer.appendChild(fakeOpt2.element);
 
     const fakeQuiz = {
       question: 'Q1',
-      options: ['A', 'B'],
-      element: document.createElement('div'),
-      optionElements: [document.createElement('div'), document.createElement('div')],
+      options: [fakeOpt1, fakeOpt2],
+      containerElement: quizContainer,
+      rawHtml: '',
+      detectedAt: Date.now(),
+      alreadyAnswered: false,
     };
 
     // Quiz 1 under assisted mode

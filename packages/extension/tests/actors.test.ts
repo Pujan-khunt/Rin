@@ -66,27 +66,6 @@ describe('Actor Implementations', () => {
       expect(mockOption.style.transition).toBe('opacity 0.2s ease');
     });
 
-    it('supports legacy quiz format with optionElements fallback', async () => {
-      const legacyQuiz = {
-        question: 'Legacy Question',
-        options: [
-          { label: 'A', text: 'Option A', index: 0 },
-        ],
-        optionElements: [mockOption],
-        containerElement: document.body,
-        rawHtml: '',
-        detectedAt: 0,
-        alreadyAnswered: false,
-      } as any;
-
-      const actor = new HudActor();
-      await actor.act({ quiz: legacyQuiz, result: mockResult });
-
-      expect(mockOption.style.backgroundColor).toBe('rgb(232, 213, 245)');
-      actor.cleanup();
-      expect(mockOption.style.backgroundColor).toBe('rgb(255, 255, 255)');
-    });
-
     it('restores empty transition if element had no initial transition style', async () => {
       mockOption.style.transition = '';
       const actor = new HudActor();
@@ -156,31 +135,6 @@ describe('Actor Implementations', () => {
       });
 
       await actor.act({ quiz: mockQuiz, result: mockResult });
-
-      expect(eventsDispatched).toEqual(['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']);
-    });
-
-    it('supports legacy quiz format with optionElements fallback', async () => {
-      const legacyQuiz = {
-        question: 'Legacy Question',
-        options: [
-          { label: 'A', text: 'Option A', index: 0 },
-        ],
-        optionElements: [mockOption],
-        containerElement: document.body,
-        rawHtml: '',
-        detectedAt: 0,
-        alreadyAnswered: false,
-      } as any;
-
-      const actor = new ClickActor();
-      const eventsDispatched: string[] = [];
-
-      ['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click'].forEach((type) => {
-        mockOption.addEventListener(type, () => eventsDispatched.push(type));
-      });
-
-      await actor.act({ quiz: legacyQuiz, result: mockResult });
 
       expect(eventsDispatched).toEqual(['pointerdown', 'mousedown', 'pointerup', 'mouseup', 'click']);
     });

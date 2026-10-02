@@ -1,5 +1,5 @@
 import type { Actor, ActPayload, ActorMode } from './types';
-import { logger } from '../services/logger';
+import { logger } from '../messaging/logger';
 
 interface ModifiedElement {
   element: HTMLElement;
@@ -34,9 +34,7 @@ export class HudActor implements Actor {
     // is highlighted at any given time. This achieves idempotency.
     this.cleanup();
 
-    const target =
-      (payload.quiz.options[payload.result.chosenIndex] as any)?.element ??
-      (payload.quiz as any).optionElements?.[payload.result.chosenIndex];
+    const target = payload.quiz.options[payload.result.chosenIndex]?.element;
     if (!target) {
       logger.warn(
         'HudActor',

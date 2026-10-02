@@ -1,6 +1,6 @@
 import { configStore } from '../../config/store';
 import { DEFAULT_MODEL } from '../../config/defaults';
-import type { ActorMode } from '../../interfaces/actor';
+import type { ActorMode } from '../../actors/types';
 
 const enabledToggle = document.getElementById('enabled-toggle') as HTMLInputElement;
 const btnAssisted = document.getElementById('mode-assisted') as HTMLButtonElement;

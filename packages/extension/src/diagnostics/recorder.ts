@@ -1,4 +1,4 @@
-import type { QuizData } from '../interfaces/quiz';
+import type { QuizData } from '../quiz/types';
 
 export interface QuizSnapshot {
   id: string;

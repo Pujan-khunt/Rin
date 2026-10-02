@@ -7,7 +7,7 @@ import {
   captureRootHtml,
 } from '../src/diagnostics/recorder';
 import { setupDevSnapshotHotkey } from '../src/diagnostics/hotkeys';
-import type { QuizData } from '../src/interfaces/quiz';
+import type { QuizData } from '../src/quiz/types';
 
 describe('Dev-Only DOM Snapshot Recorder', () => {
   let dom: JSDOM;
@@ -36,7 +36,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
   it('captures and formats quiz snapshot payload into browser.storage', async () => {
     const mockQuiz: QuizData = {
       question: 'What is alignof struct?',
-      options: [{ label: 'A', text: '8', index: 0 }],
+      options: [{ label: 'A', text: '8', index: 0, element: {} as HTMLElement }],
       optionElements: [],
       containerElement: {} as any,
       rawHtml: '<div class="m-quiz"><p>What is alignof struct?</p></div>',
@@ -72,7 +72,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
 
     const mockQuiz: QuizData = {
       question: 'New question',
-      options: [{ label: 'A', text: '1', index: 0 }],
+      options: [{ label: 'A', text: '1', index: 0, element: {} as HTMLElement }],
       optionElements: [],
       containerElement: {} as any,
       rawHtml: '<div>New</div>',
