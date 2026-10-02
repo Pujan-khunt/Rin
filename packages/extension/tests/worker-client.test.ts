@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { WorkerClient, DEFAULT_WORKER_URL } from '../src/solver/worker-client';
+import { WorkerClient, DEFAULT_WORKER_URL } from '../src/solver/client';
 
 describe('Extension WorkerClient', () => {
   beforeEach(() => {

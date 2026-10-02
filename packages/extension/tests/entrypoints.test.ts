@@ -8,7 +8,7 @@ import { MeetingWatcher } from '../src/meeting/watcher';
 import { QuizObserver } from '../src/quiz/observer';
 import { HudActor } from '../src/actors/hud';
 import { ClickActor } from '../src/actors/click';
-import { WorkerClient } from '../src/solver/worker-client';
+import { WorkerClient } from '../src/solver/client';
 
 describe('Background Entrypoint', () => {
   let messageListener: Function;

@@ -1,5 +1,5 @@
 import { defineBackground } from 'wxt/utils/define-background';
-import { WorkerClient } from '../solver/worker-client';
+import { WorkerClient } from '../solver/client';
 import { configStore } from '../config/store';
 import { logger, prettyPrintLog } from '../services/logger';
 import type { ContentMessage, BackgroundResponse } from '../interfaces/messages';
