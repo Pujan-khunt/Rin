@@ -1,4 +1,5 @@
-import { loadConfig, saveConfig, DEFAULT_MODEL } from '../../config/config';
+import { configStore } from '../../config/store';
+import { DEFAULT_MODEL } from '../../config/defaults';
 import type { ActorMode } from '../../interfaces/actor';
 
 const enabledToggle = document.getElementById('enabled-toggle') as HTMLInputElement;
@@ -20,25 +21,25 @@ const DESCS: Record<ActorMode, string> = {
 };
 
 async function init() {
-  const config = await loadConfig();
+  const config = await configStore.load();
   enabledToggle.checked = config.enabled;
   updateModeUI(config.actorMode);
 
   enabledToggle.addEventListener('change', async () => {
     config.enabled = enabledToggle.checked;
-    await saveConfig(config);
+    await configStore.save(config);
   });
 
   btnAssisted.addEventListener('click', async () => {
     config.actorMode = 'assisted';
     updateModeUI('assisted');
-    await saveConfig(config);
+    await configStore.save(config);
   });
 
   btnAuto.addEventListener('click', async () => {
     config.actorMode = 'auto';
     updateModeUI('auto');
-    await saveConfig(config);
+    await configStore.save(config);
   });
 
   // Dev-only model selection
@@ -51,20 +52,20 @@ async function init() {
     btnDeepseek.addEventListener('click', async () => {
       config.model = DEEPSEEK_MODEL;
       updateModelUI(DEEPSEEK_MODEL);
-      await saveConfig(config);
+      await configStore.save(config);
     });
 
     btnGemini.addEventListener('click', async () => {
       config.model = GEMINI_MODEL;
       updateModelUI(GEMINI_MODEL);
-      await saveConfig(config);
+      await configStore.save(config);
     });
 
     customModelInput.addEventListener('change', async () => {
       const val = customModelInput.value.trim();
       config.model = val || DEEPSEEK_MODEL;
       updateModelUI(config.model);
-      await saveConfig(config);
+      await configStore.save(config);
     });
   }
 }

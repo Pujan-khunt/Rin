@@ -1,11 +1,8 @@
 import type { QuizInput, SolveResult } from '@rin/shared';
 import type { ActorMode } from './actor';
 
-export interface RinConfig {
-  actorMode: ActorMode;
-  enabled: boolean;
-  model?: string;
-}
+import type { RinConfig } from '../config/types';
+export type { RinConfig };
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
 

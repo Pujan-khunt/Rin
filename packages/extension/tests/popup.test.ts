@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { JSDOM } from 'jsdom';
-import * as configModule from '../src/config/config';
+import { configStore } from '../src/config/store';
 
 describe('Popup UI Interaction', () => {
   let dom: JSDOM;
@@ -34,7 +34,6 @@ describe('Popup UI Interaction', () => {
         <input
           type="text"
           id="custom-model-input"
-          class="custom-model-input"
           placeholder="Model ID (e.g. google/gemini-2.5-flash)"
         />
       </div>
@@ -50,11 +49,11 @@ describe('Popup UI Interaction', () => {
     (global as any).HTMLButtonElement = dom.window.HTMLButtonElement;
     (global as any).HTMLParagraphElement = dom.window.HTMLParagraphElement;
 
-    loadConfigSpy = vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+    loadConfigSpy = vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: true,
     });
-    saveConfigSpy = vi.spyOn(configModule, 'saveConfig').mockResolvedValue();
+    saveConfigSpy = vi.spyOn(configStore, 'save').mockResolvedValue();
 
     await import('../src/entrypoints/popup/main');
     await Promise.resolve();

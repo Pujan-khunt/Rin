@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
 import backgroundEntry from '../src/entrypoints/background';
 import dronaEntry from '../src/entrypoints/drona.content';
-import * as configModule from '../src/config/config';
+import { configStore } from '../src/config/store';
 import * as messengerModule from '../src/messaging/messenger';
 import * as lifecycleModule from '../src/detection/lifecycle';
 import * as observerModule from '../src/detection/observer';
@@ -108,7 +108,7 @@ describe('Background Entrypoint', () => {
   });
 
   it('handles GET_CONFIG successfully', async () => {
-    vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+    vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'auto',
       enabled: true,
     });
@@ -186,7 +186,7 @@ describe('Drona Content Script Entrypoint', () => {
       return stopObserver;
     });
 
-    vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+    vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: true,
     });
@@ -258,7 +258,7 @@ describe('Drona Content Script Entrypoint', () => {
 
     const sendSpy = vi.spyOn(messengerModule, 'sendToBackground');
 
-    vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+    vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: false,
     });
@@ -283,7 +283,7 @@ describe('Drona Content Script Entrypoint', () => {
       return vi.fn();
     });
 
-    vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+    vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'auto',
       enabled: true,
     });
@@ -325,7 +325,7 @@ describe('Drona Content Script Entrypoint', () => {
     });
 
     // Start with assisted mode
-    vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+    vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: true,
     });
@@ -409,7 +409,7 @@ describe('Drona Content Script Entrypoint', () => {
       return observerCount === 1 ? stopObserver1 : stopObserver2;
     });
 
-    vi.spyOn(configModule, 'loadConfig').mockResolvedValue({
+    vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: true,
     });

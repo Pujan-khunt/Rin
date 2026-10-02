@@ -1,5 +1,5 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { ConfigService } from '../services/config.service';
+import { configStore } from '../config/store';
 import { createActor } from '../actors/factory';
 import { QuizWorkflowCoordinator } from '../services/quiz-workflow.service';
 import { MeetingCoordinator } from '../services/meeting-coordinator.service';
@@ -22,9 +22,8 @@ export default defineContentScript({
     const currentUrl = typeof window !== 'undefined' ? window.location.href : 'unknown';
     logger.info('ContentScript', `Rin content script mounted on: ${currentUrl}`);
 
-    // 1. Initialize Configuration Service
-    const configService = new ConfigService();
-    const initialConfig = await configService.load();
+    // 1. Initialize Configuration Store
+    const initialConfig = await configStore.load();
     logger.info('ContentScript', 'Initial configuration loaded', initialConfig);
 
     // 2. Initialize Workflow Coordinator with Initial Actor
@@ -34,7 +33,7 @@ export default defineContentScript({
     );
 
     // 3. React to Real-Time Configuration Updates
-    const unsubscribeConfig = configService.subscribe((newConfig) => {
+    const unsubscribeConfig = configStore.subscribe((newConfig) => {
       logger.info('ContentScript', 'Settings updated in real-time', newConfig);
       workflow.setConfig(newConfig);
       workflow.setActor(createActor(newConfig.actorMode));

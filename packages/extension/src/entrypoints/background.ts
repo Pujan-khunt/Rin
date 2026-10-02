@@ -1,6 +1,6 @@
 import { defineBackground } from 'wxt/utils/define-background';
 import { WorkerClient } from '../solver/worker-client';
-import { loadConfig } from '../config/config';
+import { configStore } from '../config/store';
 import { logger, prettyPrintLog } from '../services/logger';
 import type { ContentMessage, BackgroundResponse } from '../interfaces/messages';
 
@@ -19,7 +19,8 @@ export default defineBackground(() => {
 
       if (message.type === 'SOLVE_QUIZ') {
         const start = Date.now();
-        loadConfig()
+        configStore
+          .load()
           .then((config) => {
             const solvePayload = {
               ...message.payload,
@@ -49,7 +50,7 @@ export default defineBackground(() => {
 
       if (message.type === 'GET_CONFIG') {
         logger.debug('Background', 'Received GET_CONFIG request');
-        loadConfig().then((config) => {
+        configStore.load().then((config) => {
           logger.debug('Background', 'Returning loaded config', config);
           sendResponse({ type: 'CONFIG', payload: config });
         });
