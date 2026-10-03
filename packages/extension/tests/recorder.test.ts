@@ -5,9 +5,9 @@ import {
   recordManualSnapshot,
   triggerSnapshotDownload,
   captureRootHtml,
-} from '../src/diagnostics/recorder';
-import { setupDevSnapshotHotkey } from '../src/diagnostics/hotkeys';
-import type { QuizData } from '../src/quiz/types';
+} from '@/diagnostics/recorder';
+import { setupDevSnapshotHotkey } from '@/diagnostics/hotkeys';
+import type { QuizData } from '@/quiz/types';
 
 describe('Dev-Only DOM Snapshot Recorder', () => {
   let dom: JSDOM;

@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeAll } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { configStore } from '../src/config/store';
+import { configStore } from '@/config/store';
 
 describe('Popup UI Interaction', () => {
   let dom: JSDOM;

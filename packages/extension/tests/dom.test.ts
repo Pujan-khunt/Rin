@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { SELECTORS } from '../src/dom/selectors';
-import { normalizeWhitespace, findSelfOrDescendant } from '../src/dom/utils';
+import { SELECTORS } from '@/dom/selectors';
+import { normalizeWhitespace, findSelfOrDescendant } from '@/dom/utils';
 
 describe('DOM Selectors', () => {
   it('exports expected selector structure and constants', () => {

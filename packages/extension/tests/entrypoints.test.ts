@@ -1,14 +1,14 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
-import backgroundEntry from '../src/entrypoints/background';
-import dronaEntry from '../src/entrypoints/drona.content';
-import { configStore } from '../src/config/store';
-import * as messengerModule from '../src/messaging/messenger';
-import { MeetingWatcher } from '../src/meeting/watcher';
-import { QuizObserver } from '../src/quiz/observer';
-import { HudActor } from '../src/actors/hud';
-import { ClickActor } from '../src/actors/click';
-import { WorkerClient } from '../src/solver/client';
+import backgroundEntry from '@/entrypoints/background';
+import dronaEntry from '@/entrypoints/drona.content';
+import { configStore } from '@/config/store';
+import * as messengerModule from '@/messaging/messenger';
+import { MeetingWatcher } from '@/meeting/watcher';
+import { QuizObserver } from '@/quiz/observer';
+import { HudActor } from '@/actors/hud';
+import { ClickActor } from '@/actors/click';
+import { WorkerClient } from '@/solver/client';
 
 describe('Background Entrypoint', () => {
   let messageListener: Function;

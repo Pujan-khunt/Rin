@@ -1,7 +1,7 @@
-import { SELECTORS } from '../dom/selectors';
-import { findSelfOrDescendant, normalizeWhitespace } from '../dom/utils';
-import { logger } from '../messaging/logger';
-import type { DetectedOption, QuizData } from './types';
+import { SELECTORS } from '@/dom/selectors';
+import { findSelfOrDescendant, normalizeWhitespace } from '@/dom/utils';
+import { logger } from '@/messaging/logger';
+import type { DetectedOption, QuizData } from '@/quiz/types';
 
 export { normalizeWhitespace };
 

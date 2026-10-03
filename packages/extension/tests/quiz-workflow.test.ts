@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { QuizWorkflow } from '../src/quiz/workflow';
-import type { Actor } from '../src/actors/types';
-import type { QuizData } from '../src/quiz/types';
-import type { BackgroundResponse } from '../src/messaging/types';
+import { QuizWorkflow } from '@/quiz/workflow';
+import type { Actor } from '@/actors/types';
+import type { QuizData } from '@/quiz/types';
+import type { BackgroundResponse } from '@/messaging/types';
 
 describe('QuizWorkflow', () => {
   let mockActor: Actor;

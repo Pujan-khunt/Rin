@@ -1,6 +1,6 @@
 import type { QuizInput, SolveResult, WorkerErrorResponse } from '@rin/shared';
 import { CLIENT_HEADER_NAME } from '@rin/shared';
-import { logger } from '../messaging/logger';
+import { logger } from '@/messaging/logger';
 
 export const DEFAULT_WORKER_URL = 'https://rin-worker.pujankhunt.me/solve';
 

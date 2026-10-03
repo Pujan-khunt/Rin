@@ -1,5 +1,5 @@
 import type { QuizInput, SolveResult } from '@rin/shared';
-import type { RinConfig } from '../config/types';
+import type { RinConfig } from '@/config/types';
 export type { RinConfig };
 
 export type LogLevel = 'debug' | 'info' | 'warn' | 'error';

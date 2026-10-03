@@ -1,10 +1,10 @@
 import type { QuizInput } from '@rin/shared';
-import type { Actor } from '../actors/types';
-import type { RinConfig } from '../config/types';
-import type { QuizData } from './types';
-import type { BackgroundResponse } from '../messaging/types';
-import { sendToBackground } from '../messaging/messenger';
-import { logger } from '../messaging/logger';
+import type { Actor } from '@/actors/types';
+import type { RinConfig } from '@/config/types';
+import type { QuizData } from '@/quiz/types';
+import type { BackgroundResponse } from '@/messaging/types';
+import { sendToBackground } from '@/messaging/messenger';
+import { logger } from '@/messaging/logger';
 
 export type SolverSender = (msg: { type: 'SOLVE_QUIZ'; payload: QuizInput }) => Promise<BackgroundResponse>;
 

@@ -1,5 +1,5 @@
-import type { BackgroundResponse, ContentMessage, MessagePayloads, MessageType } from './types';
-import { logger } from './logger';
+import type { BackgroundResponse, ContentMessage, MessagePayloads, MessageType } from '@/messaging/types';
+import { logger } from '@/messaging/logger';
 
 export type MessageHandler = (payload: any) => Promise<BackgroundResponse>;
 

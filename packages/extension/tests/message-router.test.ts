@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
-import { MessageRouter } from '../src/messaging/router';
-import { logger } from '../src/messaging/logger';
+import { MessageRouter } from '@/messaging/router';
+import { logger } from '@/messaging/logger';
 import type { QuizInput, SolveResult } from '@rin/shared';
 
 describe('MessageRouter', () => {

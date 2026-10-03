@@ -1,4 +1,4 @@
-import type { QuizData } from '../quiz/types';
+import type { QuizData } from '@/quiz/types';
 import type { SolveResult } from '@rin/shared';
 
 export type ActorMode = 'assisted' | 'auto';

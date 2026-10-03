@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { parseQuizChoice } from '../src/parser';
+import { parseQuizChoice } from '@/parser';
 import type { QuizChoice } from '@rin/shared';
 
 describe('Worker Choice Parser', () => {

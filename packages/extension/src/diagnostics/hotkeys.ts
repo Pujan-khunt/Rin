@@ -1,10 +1,10 @@
-import type { QuizSnapshot } from './recorder';
+import type { QuizSnapshot } from '@/diagnostics/recorder';
 import {
   createManualSnapshot,
   formatDownloadableHtml,
   triggerSnapshotDownload,
   saveSnapshotToStorage,
-} from './recorder';
+} from '@/diagnostics/recorder';
 
 /**
  * Sets up a dev-only hotkey listener on the window.

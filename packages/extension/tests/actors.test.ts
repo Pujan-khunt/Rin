@@ -1,9 +1,9 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { HudActor } from '../src/actors/hud';
-import { ClickActor } from '../src/actors/click';
-import { createActor, ACTOR_STRATEGIES } from '../src/actors/factory';
-import type { QuizData } from '../src/quiz/types';
+import { HudActor } from '@/actors/hud';
+import { ClickActor } from '@/actors/click';
+import { createActor, ACTOR_STRATEGIES } from '@/actors/factory';
+import type { QuizData } from '@/quiz/types';
 import type { SolveResult } from '@rin/shared';
 
 describe('Actor Implementations', () => {

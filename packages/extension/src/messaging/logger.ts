@@ -1,4 +1,4 @@
-import type { LogLevel, LogPayload } from './types';
+import type { LogLevel, LogPayload } from '@/messaging/types';
 
 /**
  * Formats a Unix timestamp into human-readable HH:mm:ss.SSS format.

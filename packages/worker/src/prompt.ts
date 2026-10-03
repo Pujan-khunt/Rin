@@ -1,5 +1,5 @@
 import type { QuizInput } from '@rin/shared';
-import { QUIZ_SOLVER_SYSTEM_PROMPT } from './constants';
+import { QUIZ_SOLVER_SYSTEM_PROMPT } from '@/constants';
 
 export interface ChatCompletionPayload {
   model: string;

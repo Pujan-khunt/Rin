@@ -1,14 +1,14 @@
 import { defineContentScript } from 'wxt/utils/define-content-script';
-import { configStore } from '../config/store';
-import { createActor } from '../actors/factory';
-import { QuizWorkflow } from '../quiz/workflow';
-import { QuizObserver } from '../quiz/observer';
-import { MeetingWatcher } from '../meeting/watcher';
-import { setupDevSnapshotHotkey } from '../diagnostics/hotkeys';
-import { recordQuizSnapshot } from '../diagnostics/recorder';
-import { logger } from '../messaging/logger';
-import { sendToBackground } from '../messaging/messenger';
-import type { QuizData } from '../quiz/types';
+import { configStore } from '@/config/store';
+import { createActor } from '@/actors/factory';
+import { QuizWorkflow } from '@/quiz/workflow';
+import { QuizObserver } from '@/quiz/observer';
+import { MeetingWatcher } from '@/meeting/watcher';
+import { setupDevSnapshotHotkey } from '@/diagnostics/hotkeys';
+import { recordQuizSnapshot } from '@/diagnostics/recorder';
+import { logger } from '@/messaging/logger';
+import { sendToBackground } from '@/messaging/messenger';
+import type { QuizData } from '@/quiz/types';
 
 /**
  * Rin Content Script Entrypoint for Scaler (Drona).

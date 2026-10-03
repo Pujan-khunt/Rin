@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { QuizObserver } from '../src/quiz/observer';
-import type { QuizObserverCallbacks, QuizData } from '../src/quiz/types';
+import { QuizObserver } from '@/quiz/observer';
+import type { QuizObserverCallbacks, QuizData } from '@/quiz/types';
 
 describe('QuizObserver', () => {
   let dom: JSDOM;

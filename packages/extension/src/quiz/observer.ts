@@ -1,6 +1,6 @@
-import { extractQuiz } from './extractor';
-import { logger } from '../messaging/logger';
-import type { QuizObserverCallbacks } from './types';
+import { extractQuiz } from '@/quiz/extractor';
+import { logger } from '@/messaging/logger';
+import type { QuizObserverCallbacks } from '@/quiz/types';
 
 /**
  * Targeted quiz observer for classroom meetings.

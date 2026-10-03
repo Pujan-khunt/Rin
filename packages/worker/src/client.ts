@@ -1,5 +1,5 @@
-import { OPENROUTER_CHAT_URL } from './constants';
-import type { ChatCompletionPayload } from './prompt';
+import { OPENROUTER_CHAT_URL } from '@/constants';
+import type { ChatCompletionPayload } from '@/prompt';
 
 export interface InferenceClient {
   complete(payload: ChatCompletionPayload, apiKey: string): Promise<string>;

@@ -1,4 +1,4 @@
-import type { ActorMode } from '../actors/types';
+import type { ActorMode } from '@/actors/types';
 
 export interface RinConfig {
   enabled: boolean;

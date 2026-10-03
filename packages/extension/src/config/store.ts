@@ -1,6 +1,6 @@
-import { logger } from '../messaging/logger';
-import { DEFAULT_CONFIG } from './defaults';
-import type { ConfigChangeListener, RinConfig } from './types';
+import { logger } from '@/messaging/logger';
+import { DEFAULT_CONFIG } from '@/config/defaults';
+import type { ConfigChangeListener, RinConfig } from '@/config/types';
 
 /**
  * Unified Configuration Store managing persistence, caching, and real-time pub/sub.

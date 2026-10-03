@@ -1,6 +1,6 @@
-import { HudActor } from './hud';
-import { ClickActor } from './click';
-import type { Actor, ActorMode } from './types';
+import { HudActor } from '@/actors/hud';
+import { ClickActor } from '@/actors/click';
+import type { Actor, ActorMode } from '@/actors/types';
 
 export const ACTOR_STRATEGIES: Record<ActorMode, new () => Actor> = {
   assisted: HudActor,

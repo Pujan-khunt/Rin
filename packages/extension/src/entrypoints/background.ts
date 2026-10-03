@@ -1,8 +1,8 @@
 import { defineBackground } from 'wxt/utils/define-background';
-import { WorkerClient } from '../solver/client';
-import { configStore } from '../config/store';
-import { logger, prettyPrintLog } from '../messaging/logger';
-import { MessageRouter } from '../messaging/router';
+import { WorkerClient } from '@/solver/client';
+import { configStore } from '@/config/store';
+import { logger, prettyPrintLog } from '@/messaging/logger';
+import { MessageRouter } from '@/messaging/router';
 
 export default defineBackground(() => {
   logger.info('Background', 'Rin service worker initialized and listening');

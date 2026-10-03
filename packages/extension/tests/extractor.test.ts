@@ -6,7 +6,7 @@ import {
   extractBlockText,
   parseQuestion,
   parseOption,
-} from '../src/quiz/extractor';
+} from '@/quiz/extractor';
 
 describe('Quiz Extractor', () => {
   describe('normalizeWhitespace', () => {

@@ -1,4 +1,4 @@
-import type { RinConfig } from './types';
+import type { RinConfig } from '@/config/types';
 
 export const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
 

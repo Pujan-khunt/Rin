@@ -1,5 +1,5 @@
-import type { Actor, ActPayload, ActorMode } from './types';
-import { logger } from '../messaging/logger';
+import type { Actor, ActPayload, ActorMode } from '@/actors/types';
+import { logger } from '@/messaging/logger';
 
 /**
  * Dispatches a complete 5-stage synthetic interaction sequence on the target element.

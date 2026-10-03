@@ -1,7 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { JSDOM } from 'jsdom';
-import { MeetingWatcher } from '../src/meeting/watcher';
-import type { MeetingCallbacks } from '../src/meeting/types';
+import { MeetingWatcher } from '@/meeting/watcher';
+import type { MeetingCallbacks } from '@/meeting/types';
 
 describe('MeetingWatcher', () => {
   let dom: JSDOM;

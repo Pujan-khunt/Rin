@@ -1,8 +1,8 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import type { SolveResult } from '@rin/shared';
 import { CLIENT_HEADER_NAME } from '@rin/shared';
-import worker, { solve } from '../src/index';
-import { OPENROUTER_CHAT_URL, DEEPSEEK_MODEL_ID } from '../src/constants';
+import worker, { solve } from '@/index';
+import { OPENROUTER_CHAT_URL, DEEPSEEK_MODEL_ID } from '@/constants';
 
 const TEST_CLIENT_KEY = 'test-client-key';
 

@@ -1,8 +1,8 @@
 import type { QuizInput, SolveResult } from '@rin/shared';
-import { DEFAULT_MODEL_ID } from './constants';
-import { buildChatPayload, type ChatCompletionPayload } from './prompt';
-import { parseQuizChoice, type ParsedQuizChoice } from './parser';
-import { OpenRouterClient, type InferenceClient } from './client';
+import { DEFAULT_MODEL_ID } from '@/constants';
+import { buildChatPayload, type ChatCompletionPayload } from '@/prompt';
+import { parseQuizChoice, type ParsedQuizChoice } from '@/parser';
+import { OpenRouterClient, type InferenceClient } from '@/client';
 import {
   handleOptions,
   jsonResponse,
@@ -11,7 +11,7 @@ import {
   authenticateRequest,
   isAllowedOrigin,
   type Env,
-} from './http';
+} from '@/http';
 
 export type { Env };
 
