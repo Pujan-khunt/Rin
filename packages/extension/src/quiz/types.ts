@@ -1,6 +1,6 @@
-export interface DetectedOption {
-  label: string;
-  text: string;
+import type { QuizChoice } from '@rin/shared';
+
+export interface DetectedOption extends QuizChoice {
   index: number;
   element: HTMLElement;
 }
@@ -12,9 +12,8 @@ export interface QuizData {
   alreadyAnswered: boolean;
   /** Monotonic extraction timestamp from performance.now(). */
   detectedAt: number;
-  rawHtml: string;
-  /** Compatibility array; actors use options[index].element. */
-  optionElements?: HTMLElement[];
+  /** Quiz HTML captured at extraction only in development. */
+  rawHtml?: string;
 }
 
 export interface QuizObserverCallbacks {

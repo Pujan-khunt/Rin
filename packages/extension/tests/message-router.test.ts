@@ -26,10 +26,7 @@ describe('MessageRouter', () => {
   it('supports method chaining when registering handlers', () => {
     const router = new MessageRouter();
     const result = router
-      .register('GET_CONFIG', async () => ({
-        type: 'CONFIG',
-        payload: { enabled: true, actorMode: 'auto' },
-      }))
+      .register('SOLVE_QUIZ', async () => ({ type: 'ERROR', payload: { message: 'Test error' } }))
       .register('LOG', async () => ({
         type: 'ACK',
       }));
@@ -159,13 +156,13 @@ describe('MessageRouter', () => {
     const router = new MessageRouter();
     vi.spyOn(logger, 'error').mockImplementation(() => {});
 
-    router.register('GET_CONFIG', async () => {
+    router.register('LOG', async () => {
       return Promise.reject('Unexpected string failure');
     });
     router.listen();
 
     const sendResponse = vi.fn();
-    messageListener({ type: 'GET_CONFIG' }, {}, sendResponse);
+    messageListener({ type: 'LOG', payload: { level: 'info', tag: 'Test', message: 'Test', timestamp: 0 } }, {}, sendResponse);
 
     await vi.waitFor(() => {
       expect(sendResponse).toHaveBeenCalledWith({

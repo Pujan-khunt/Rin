@@ -82,10 +82,6 @@ interface QuizChoice {
   text: string;
 }
 
-interface QuizOption extends QuizChoice {
-  index: number;
-}
-
 interface QuizInput {
   question: string;
   options: QuizChoice[];
@@ -104,7 +100,7 @@ interface WorkerErrorResponse {
 }
 ```
 
-The workflow includes `index` on outgoing options even though `QuizInput` only requires label/text. The worker maps its answer by array position and does not use those indexes. `QuizOption` remains an exported positional type; the extension uses its own `DetectedOption` with an `element: HTMLElement` field.
+The workflow sends option labels and text. The worker maps its answer by array position. The extension uses a DOM-bound `DetectedOption` extending `QuizChoice` with an index and element reference. Model IDs and the default are defined once in `packages/shared/src/models.ts` and used by the extension and worker.
 
 ```ts
 interface DetectedOption {
@@ -120,12 +116,11 @@ interface QuizData {
   containerElement: HTMLElement;
   alreadyAnswered: boolean;
   detectedAt: number;
-  rawHtml: string;
-  optionElements?: HTMLElement[];
+  rawHtml?: string;
 }
 ```
 
-`extractQuiz()` still populates the optional compatibility array `optionElements`; actors use `options[chosenIndex].element`. DOM elements, raw HTML, detection time, and page URL are not sent in solver requests.
+`extractQuiz()` captures optional `rawHtml` only in development; production does not serialize quiz HTML. Actors use `options[chosenIndex].element`. DOM elements, raw HTML, detection time, and page URL are not sent in solver requests.
 
 ## 6. Workflow, settings, and actors
 
@@ -142,7 +137,6 @@ There is no request cancellation on meeting leave, retry, in-flight request seri
 | Message | Background behavior | Success response |
 |---|---|---|
 | `SOLVE_QUIZ` | Loads settings and calls `WorkerClient`; development prefers a stored model override. | `QUIZ_SOLVED` with `SolveResult` |
-| `GET_CONFIG` | Loads settings. | `CONFIG` with `RinConfig` |
 | `LOG` | Calls `prettyPrintLog`. | `ACK` |
 
 `MessageRouter.register()` infers each payload type from the message name. `listen()` attaches the runtime listener itself, returns false for unknown/missing types, and keeps recognized message channels open with `true`. Synchronous exceptions and rejected handlers become `ERROR` responses containing a message. Sender identity and payload structure are not validated at runtime.
@@ -178,6 +172,6 @@ CORS reflects an accepted Origin, otherwise uses `null`, allows `POST, OPTIONS` 
 
 Development logging is printed in the background context or forwarded there from content/popup contexts. Normal logger calls return without emitting in production; the background's registered `LOG` route still invokes the printer when directly called.
 
-The development workflow hook records quiz metadata, isolated quiz HTML, and the current `#root` HTML (with `body` fallback) **after** an actor resolves. It stores snapshots in `rinSnapshots` without a retention cap, swallowing storage errors. Manual `Alt+Shift+S` or `Ctrl+Alt+S` snapshots also download HTML using a Blob and temporary anchor. These diagnostics are enabled by the development entrypoint, not by the recorder functions themselves.
+The development workflow hook records quiz metadata, isolated quiz HTML, and the current `#root` HTML (with `body` fallback) **after** an actor resolves. It stores snapshots in `rinSnapshots`, retaining at most 20 newest entries and 2 MiB of serialized UTF-8 data. Oldest entries are evicted first and a snapshot too large to fit is not retained. Storage errors are swallowed. Manual `Alt+Shift+S` or `Ctrl+Alt+S` snapshots also download HTML using a Blob and temporary anchor. These diagnostics are enabled by the development entrypoint, not by the recorder functions themselves.
 
 `pnpm test` runs Vitest across extension and worker tests. Browser APIs and network calls are mocked and DOM behavior uses JSDOM; `pnpm typecheck` checks all three packages. The two root-level HTML captures document a live `.m-activity` with an already-selected choice; tests use inline fixtures rather than loading these captures. There is no automated live-browser submission test or benchmark script. Build commands and artifact checks are documented in [BUILD.md](../../../BUILD.md).

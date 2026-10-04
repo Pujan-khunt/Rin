@@ -48,7 +48,7 @@ packages/
 │   ├── src/
 │   ├── tests/
 │   └── wrangler.jsonc
-└── shared/src/                 # QuizInput, QuizChoice, QuizOption, SolveResult
+└── shared/src/                 # QuizInput, QuizChoice, SolveResult, model IDs
 ```
 
 The repository also includes two captured live-class HTML files, Vitest configuration, and maintained [system](docs/superpowers/specs/2026-09-25-rin-design.md) and [extension](docs/superpowers/specs/2026-10-02-extension-architecture-refactor-design.md) implementation references. The original benchmark CLI and 17-fixture collection were proposals; they are absent from this checkout.
@@ -130,11 +130,11 @@ Deployment uses the `rin-solver` worker and custom domain `rin-worker.pujankhunt
 - The popup exposes DeepSeek and Gemini model presets and a custom model ID. The background uses the stored model override in development. Production hides the model controls, but still sends the stored model through the quiz workflow.
 - The logger forwards content/popup logs to the extension background console. Normal logger calls return without emitting in production.
 - After a successful workflow action, quiz and application-root HTML snapshots are saved under `rinSnapshots` in local storage. Automatic recording does not download a file.
-- `Alt+Shift+S` or `Ctrl+Alt+S` captures `#root` (or `body`), saves a snapshot, and downloads `rin-manual-snapshot-<timestamp>.html`. Storage failures are swallowed and snapshots have no retention cap.
+- `Alt+Shift+S` or `Ctrl+Alt+S` captures `#root` (or `body`), saves a snapshot, and downloads `rin-manual-snapshot-<timestamp>.html`. Storage failures are swallowed. Storage retains at most 20 newest snapshots and 2 MiB of serialized UTF-8 data, evicting oldest entries first; a snapshot too large to fit is not retained. Manual downloads still occur.
 
 ## Data and authentication
 
-The solver receives question text, option labels/text/indexes, and a model ID. DOM element references, raw HTML, and page URLs are not sent in solver requests. The worker sends question text and option labels/text to OpenRouter; the model's response is parsed for its choice, and reasoning is not exposed in the extension response. Development snapshots remain in browser local storage unless manually downloaded.
+The solver receives question text, option labels/text, and a model ID. DOM element references, raw HTML, and page URLs are not sent in solver requests. The worker sends question text and option labels/text to OpenRouter; the model's response is parsed for its choice, and reasoning is not exposed in the extension response. Development snapshots are retained within the storage limits above; manual captures also download a file.
 
 The extension requests `storage` permission and host permissions for Scaler and the production worker. The worker requires a valid serialized `Origin`, plus the client key. Accepted origins are `chrome-extension://` with a 32-character ID using letters `a` through `p`, `moz-extension://` with a UUID hostname, and HTTP origins whose hostname is exactly `localhost` or `127.0.0.1` (with an optional port). Lookalike hosts, credentials, paths, queries, fragments, and malformed origins are rejected. This validates extension ID format, not a specific extension ID allowlist. There is no application-level rate limiting.
 

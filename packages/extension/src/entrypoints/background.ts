@@ -13,10 +13,6 @@ export default defineBackground(() => {
       prettyPrintLog(payload);
       return { type: 'ACK' };
     })
-    .register('GET_CONFIG', async () => {
-      const config = await configStore.load();
-      return { type: 'CONFIG', payload: config };
-    })
     .register('SOLVE_QUIZ', async (payload) => {
       const config = await configStore.load();
       const model = import.meta.env.DEV && config.model ? config.model : payload.model;

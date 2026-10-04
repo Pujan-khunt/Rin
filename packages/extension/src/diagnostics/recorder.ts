@@ -11,7 +11,8 @@ export interface QuizSnapshot {
   trigger?: 'auto_quiz' | 'manual_hotkey';
 }
 
-export type DomSnapshot = QuizSnapshot;
+export const MAX_SNAPSHOTS = 20;
+export const MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024;
 
 /**
  * Extracts the outerHTML of the React application root (#root).
@@ -79,15 +80,19 @@ export function triggerSnapshotDownload(html: string, filename: string): void {
 }
 
 /**
- * Prepends a snapshot to local rinSnapshots without a retention cap.
+ * Keeps newest snapshots within the entry and serialized UTF-8 byte limits.
  * Storage failures are swallowed.
  */
 export async function saveSnapshotToStorage(snapshot: QuizSnapshot): Promise<void> {
   try {
     if (typeof browser !== 'undefined' && browser.storage?.local) {
       const stored = await browser.storage.local.get('rinSnapshots');
-      const snapshots: QuizSnapshot[] = Array.isArray(stored?.rinSnapshots) ? stored.rinSnapshots : [];
-      snapshots.unshift(snapshot);
+      const existing: QuizSnapshot[] = Array.isArray(stored?.rinSnapshots) ? stored.rinSnapshots : [];
+      const snapshots = [snapshot, ...existing].slice(0, MAX_SNAPSHOTS);
+      const encoder = new TextEncoder();
+      while (snapshots.length && encoder.encode(JSON.stringify(snapshots)).byteLength > MAX_SNAPSHOT_BYTES) {
+        snapshots.pop();
+      }
       await browser.storage.local.set({ rinSnapshots: snapshots });
     }
   } catch {
@@ -118,14 +123,15 @@ export function createManualSnapshot(): QuizSnapshot {
  */
 export async function recordQuizSnapshot(quiz: QuizData): Promise<QuizSnapshot> {
   const rootHtml = captureRootHtml();
+  const rawHtml = quiz.rawHtml ?? quiz.containerElement.outerHTML;
   const snapshot: QuizSnapshot = {
     id: `snapshot_${Date.now()}_${Math.random().toString(36).substring(2, 7)}`,
     timestamp: Date.now(),
     url: typeof window !== 'undefined' ? window.location.href : 'mock://url',
     question: quiz.question,
     optionCount: quiz.options.length,
-    rawHtml: quiz.rawHtml,
-    rootHtml: rootHtml || quiz.rawHtml,
+    rawHtml,
+    rootHtml: rootHtml || rawHtml,
     trigger: 'auto_quiz',
   };
 

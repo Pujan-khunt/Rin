@@ -1,5 +1,5 @@
 import type { QuizInput, SolveResult } from '@rin/shared';
-import { DEFAULT_MODEL_ID } from '@/constants';
+import { DEFAULT_MODEL_ID } from '@rin/shared';
 import { buildChatPayload, type ChatCompletionPayload } from '@/prompt';
 import { parseQuizChoice, type ParsedQuizChoice } from '@/parser';
 import { OpenRouterClient, OpenRouterTimeoutError, type InferenceClient } from '@/client';

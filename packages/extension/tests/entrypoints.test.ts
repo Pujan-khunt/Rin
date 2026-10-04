@@ -109,27 +109,6 @@ describe('Background Entrypoint', () => {
     });
   });
 
-  it('handles GET_CONFIG successfully', async () => {
-    vi.spyOn(configStore, 'load').mockResolvedValue({
-      actorMode: 'auto',
-      enabled: true,
-    });
-
-    backgroundEntry.main();
-
-    const sendResponse = vi.fn();
-    const keepChannel = messageListener({ type: 'GET_CONFIG' }, {}, sendResponse);
-
-    expect(keepChannel).toBe(true);
-
-    await vi.waitFor(() => {
-      expect(sendResponse).toHaveBeenCalledWith({
-        type: 'CONFIG',
-        payload: { actorMode: 'auto', enabled: true },
-      });
-    });
-  });
-
   it('handles LOG successfully and responds with ACK', async () => {
     backgroundEntry.main();
 
@@ -370,8 +349,8 @@ describe('Drona Content Script Entrypoint', () => {
       payload: {
         question: 'Test question',
         options: [
-          { label: 'A', text: 'Option A', index: 0 },
-          { label: 'B', text: 'Option B', index: 1 },
+          { label: 'A', text: 'Option A' },
+          { label: 'B', text: 'Option B' },
         ],
         model: undefined,
       },

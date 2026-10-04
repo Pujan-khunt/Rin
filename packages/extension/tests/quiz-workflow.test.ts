@@ -185,8 +185,8 @@ describe('QuizWorkflow', () => {
       payload: {
         question: 'Test Question',
         options: [
-          { label: 'A', text: 'Option 1', index: 0 },
-          { label: 'B', text: 'Option 2', index: 1 },
+          { label: 'A', text: 'Option 1' },
+          { label: 'B', text: 'Option 2' },
         ],
         model: 'deepseek/deepseek-v4-flash',
       },

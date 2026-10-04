@@ -7,3 +7,4 @@
 
 export * from './quiz';
 export * from './solver';
+export * from './models';

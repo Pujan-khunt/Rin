@@ -66,7 +66,6 @@ export class QuizWorkflow {
           options: quiz.options.map((o) => ({
             label: o.label,
             text: o.text,
-            index: o.index,
           })),
           model: this.config.model,
         },

@@ -40,7 +40,7 @@ RIN_CLIENT_KEY="test-build-key" pnpm --filter @rin/extension zip:firefox
 RIN_CLIENT_KEY="test-build-key" pnpm --filter @rin/extension zip:all
 ```
 
-This command runs Chrome packaging followed by Firefox packaging. Firefox packaging also creates a sources archive. In the verified build, that archive contains the extension package only: it omits the monorepo root configuration, lockfile, and shared package needed to rebuild. Include the full monorepo source archive described below for reviewer reproduction.
+This command runs Chrome packaging followed by Firefox packaging. Firefox packaging also creates a sources archive rooted at the monorepo. It includes the root package manifest, lockfile, workspace configuration, base TypeScript configuration, extension source/assets/configuration, shared package, worker source/configuration, and build instructions. WXT excludes tests; the explicit source allowlist excludes local secrets, dependencies, and generated files.
 
 ## Artifact locations
 
@@ -57,6 +57,15 @@ All paths are relative to the repository root and use the current extension vers
 | WXT sources archive | `packages/extension/.output/rinextension-0.1.0-sources.zip` |
 
 Use the actual names printed by WXT if the extension name or version changes.
+
+To rebuild from the WXT sources archive, extract it to a new directory and run these commands from that directory:
+
+```bash
+pnpm install --frozen-lockfile
+RIN_CLIENT_KEY="test-build-key" pnpm --filter @rin/extension build:firefox
+```
+
+Use the original client key to reproduce the submitted binary. This archive contains build sources; use the full committed archive below when tests and other repository files are also needed.
 
 For a separate archive of the entire committed monorepo, run this after committing the intended source snapshot:
 

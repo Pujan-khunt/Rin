@@ -14,12 +14,11 @@ describe('Messaging Bridge (sendToBackground)', () => {
 
   it('sends message via browser.runtime.sendMessage and returns response', async () => {
     const mockResponse: BackgroundResponse = {
-      type: 'CONFIG',
-      payload: { actorMode: 'assisted', enabled: true },
+      type: 'ACK',
     };
     (global as any).browser.runtime.sendMessage.mockResolvedValue(mockResponse);
 
-    const message: ContentMessage = { type: 'GET_CONFIG' };
+    const message: ContentMessage = { type: 'SOLVE_QUIZ', payload: { question: 'Test?', options: [{ label: 'A', text: 'Answer' }] } };
     const response = await sendToBackground(message);
 
     expect(response).toEqual(mockResponse);
@@ -31,7 +30,7 @@ describe('Messaging Bridge (sendToBackground)', () => {
       new Error('Extension port disconnected')
     );
 
-    await expect(sendToBackground({ type: 'GET_CONFIG' })).rejects.toThrow(
+    await expect(sendToBackground({ type: 'SOLVE_QUIZ', payload: { question: 'Test?', options: [{ label: 'A', text: 'Answer' }] } })).rejects.toThrow(
       'Extension port disconnected'
     );
   });

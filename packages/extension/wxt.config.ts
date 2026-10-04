@@ -1,8 +1,21 @@
 import { defineConfig } from 'wxt';
+import { fileURLToPath } from 'node:url';
 
 export default defineConfig({
   srcDir: 'src',
   manifestVersion: 3,
+  zip: {
+    sourcesRoot: fileURLToPath(new URL('../..', import.meta.url)),
+    includeSources: [
+      'package.json', 'pnpm-lock.yaml', 'pnpm-workspace.yaml', 'tsconfig.base.json',
+      'README.md', 'BUILD.md',
+      'packages/extension/package.json', 'packages/extension/tsconfig.json',
+      'packages/extension/wxt.config.ts', 'packages/extension/src/**', 'packages/extension/public/**',
+      'packages/shared/package.json', 'packages/shared/tsconfig.json', 'packages/shared/src/**',
+      'packages/worker/package.json', 'packages/worker/tsconfig.json',
+      'packages/worker/wrangler.jsonc', 'packages/worker/src/**',
+    ],
+  },
   vite: (configEnv) => {
     const isBuild = process.argv.some((arg) => ['build', 'zip'].includes(arg));
     const clientKey = process.env.RIN_CLIENT_KEY || process.env.VITE_RIN_CLIENT_KEY;

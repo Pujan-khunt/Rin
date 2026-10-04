@@ -8,9 +8,7 @@ export const SELECTORS = {
   },
   quiz: {
     root: 'div.m-quiz',
-    title: 'h1.dark.bold',
     questionMarkdown: '.m-problem-description__markdown',
-    choicesList: '.m-problem-choices__list',
     choiceItem: '.m-problem-choices__list > a.choice',
     choiceLabel: '.choice__name',
     choiceText: '.choice__text',

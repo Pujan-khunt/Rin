@@ -98,7 +98,6 @@ export function extractQuiz(container: HTMLElement): QuizData | null {
     containerElement: root,
     alreadyAnswered,
     detectedAt: performance.now(),
-    rawHtml: root.outerHTML,
-    optionElements: options.map((opt) => opt.element),
+    rawHtml: import.meta.env.DEV ? root.outerHTML : undefined,
   };
 }

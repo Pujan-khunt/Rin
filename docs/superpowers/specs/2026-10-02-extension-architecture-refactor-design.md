@@ -51,7 +51,7 @@ A storage subscription first updates workflow settings, then swaps the actor whe
 
 `QuizObserver.onQuiz` invokes the workflow. `MeetingWatcher.onEnter` starts quiz observation, and `onLeave` stops it and cleans up the actor. Content-context invalidation unsubscribes settings, stops both watchers, cleans up the actor, and removes the development hotkey listener.
 
-The background constructs `WorkerClient` and registers `LOG`, `GET_CONFIG`, and `SOLVE_QUIZ` routes. `SOLVE_QUIZ` loads settings for every request; in development the stored model takes precedence, while production forwards the workflow payload's model. The popup accesses storage directly rather than using `GET_CONFIG`.
+The background constructs `WorkerClient` and registers `LOG` and `SOLVE_QUIZ` routes. `SOLVE_QUIZ` loads settings for every request; in development the stored model takes precedence, while production forwards the workflow payload's model. The popup accesses the configuration store directly.
 
 ## 3. Lifecycle interfaces
 
@@ -61,14 +61,14 @@ The background constructs `WorkerClient` and registers `LOG`, `GET_CONFIG`, and 
 | `QuizObserver` | `start(container)` resets prior observation, emits an existing quiz, then keeps observing. | `stop()` disconnects and clears container and last-emission identity. |
 | `QuizWorkflow` | `process(quiz)` guards, sends, checks the response, then acts. | `cleanup()` delegates to actor cleanup; it does not cancel inference. |
 | `Actor` | `act({ quiz, result }): Promise<void>`. | `cleanup(): void`. |
-| `ConfigStore` | `load()`, `save(config)`, `get()`, compatibility `getConfig()`. | `subscribe(listener)` returns an unsubscribe function. |
+| `ConfigStore` | `load()`, `save(config)`, `get()`. | `subscribe(listener)` returns an unsubscribe function. |
 | `MessageRouter` | Chainable `register(type, handler)`, then `listen()` attaches one listener. | No removal method is exposed. |
 
 Meeting search observes `#root`/`body` recursively. During a session, quiz observation watches the classroom subtree and removal observation watches its parent, usually shallowly. There is no single-observer guarantee or URL-route filter.
 
 ## 4. Quiz representation and execution
 
-A `DetectedOption` owns `{ label, text, index, element }`, avoiding index-aligned arrays in the actor path. `QuizData` also retains optional `optionElements`, which the extractor still fills for compatibility.
+A `DetectedOption` owns `{ label, text, index, element }`, avoiding index-aligned arrays in the actor path. Each option stores its element directly; there is no parallel element array. Optional `QuizData.rawHtml` is captured during extraction only in development.
 
 Question parsing preserves internal `<pre>` whitespace after trimming. Other blocks and option texts are normalized. Extraction requires at least one option with text; it does not guarantee complete option hydration. Already-answered state is a snapshot of `.choice--selected` presence at extraction time.
 
@@ -84,7 +84,7 @@ The assisted actor stores and restores full inline CSS on the chosen element and
 
 `save()` replaces the cache after an awaited write and rethrows failures, but `load()` and `get()` return mutable references. The procedural popup mutates its loaded configuration before saving and updates mode/model visuals immediately. Consequently failed writes can leave cache and popup state ahead of persisted storage. There is no `PopupView`/`PopupController` class, rollback, or popup storage-change subscription.
 
-Model preset IDs are `deepseek/deepseek-v4-flash` and `google/gemini-2.5-flash`. A custom field trims its input and falls back to DeepSeek when empty. Production removes these controls but retains stored model values in configuration.
+Model preset IDs are `deepseek/deepseek-v4-flash` and `google/gemini-2.5-flash`, defined with the default in `packages/shared/src/models.ts`. A custom field trims its input and falls back to DeepSeek when empty. Production removes these controls but retains stored model values in configuration.
 
 ## 6. Routing and dependency boundaries
 
@@ -96,7 +96,7 @@ These boundaries support extension through actor and route registration. Some de
 
 ## 7. Development diagnostics
 
-The content entrypoint gates diagnostics with `import.meta.env.DEV`. The workflow itself has no development branch: its optional processed hook records the quiz after an actor resolves. Automatic recording stores metadata, raw quiz HTML, and current root HTML under `rinSnapshots`, with no automatic download or retention cap. Storage errors are swallowed.
+The content entrypoint gates diagnostics with `import.meta.env.DEV`. The workflow itself has no development branch: its optional processed hook records the quiz after an actor resolves. Automatic recording stores metadata, raw quiz HTML, and current root HTML under `rinSnapshots`, with no automatic download. Storage retains at most 20 newest snapshots and 2 MiB of serialized UTF-8 data, evicting oldest entries first. A snapshot too large to fit is not retained. Storage errors are swallowed.
 
 `Alt+Shift+S` and `Ctrl+Alt+S` create manual root/body snapshots, trigger a Blob download, and attempt storage persistence. Recorder functions themselves are callable in any environment; their normal entrypoint wiring is development-only.
 
@@ -107,7 +107,7 @@ Normal logger calls are silent in production. Development logs use the backgroun
 | Original intent | Current implementation |
 |---|---|
 | Unified configuration with zero state drift | Unified store exists; mutable references and popup writes prevent a general transactional guarantee. |
-| Eliminate parallel option arrays | Actor access uses `.element`; optional `optionElements` remains populated. |
+| Eliminate parallel option arrays | Each option owns `.element`; the compatibility array is removed. |
 | Separate popup view and controller | Popup is a procedural module with UI helper functions. |
 | Router callback registered by the background | `MessageRouter.listen()` registers the runtime callback itself. |
 | Isolate diagnostic code | Entry points gate hooks/hotkeys; recording runs after action, and ordinary production logger dispatch returns early. |

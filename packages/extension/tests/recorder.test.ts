@@ -5,6 +5,10 @@ import {
   recordManualSnapshot,
   triggerSnapshotDownload,
   captureRootHtml,
+  saveSnapshotToStorage,
+  MAX_SNAPSHOTS,
+  MAX_SNAPSHOT_BYTES,
+  type QuizSnapshot,
 } from '@/diagnostics/recorder';
 import { setupDevSnapshotHotkey } from '@/diagnostics/hotkeys';
 import type { QuizData } from '@/quiz/types';
@@ -37,7 +41,6 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     const mockQuiz: QuizData = {
       question: 'What is alignof struct?',
       options: [{ label: 'A', text: '8', index: 0, element: {} as HTMLElement }],
-      optionElements: [],
       containerElement: {} as any,
       rawHtml: '<div class="m-quiz"><p>What is alignof struct?</p></div>',
       detectedAt: 12345,
@@ -56,7 +59,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     expect(setCallArg.rinSnapshots[0].id).toBe(record.id);
   });
 
-  it('stores snapshots without artificial capping (preserves all items)', async () => {
+  it('retains the newest snapshots and discards entries beyond the count limit', async () => {
     const existingSnapshots = Array.from({ length: 55 }, (_, i) => ({
       id: `snapshot_old_${i}`,
       timestamp: 1000 + i,
@@ -73,7 +76,6 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     const mockQuiz: QuizData = {
       question: 'New question',
       options: [{ label: 'A', text: '1', index: 0, element: {} as HTMLElement }],
-      optionElements: [],
       containerElement: {} as any,
       rawHtml: '<div>New</div>',
       detectedAt: 5000,
@@ -83,8 +85,34 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     const record = await recordQuizSnapshot(mockQuiz);
     expect((global as any).browser.storage.local.set).toHaveBeenCalledTimes(1);
     const setCallArg = (global as any).browser.storage.local.set.mock.calls[0][0];
-    expect(setCallArg.rinSnapshots).toHaveLength(56);
+    expect(setCallArg.rinSnapshots).toHaveLength(MAX_SNAPSHOTS);
     expect(setCallArg.rinSnapshots[0].id).toBe(record.id);
+    expect(setCallArg.rinSnapshots.at(-1).id).toBe(`snapshot_old_${MAX_SNAPSHOTS - 2}`);
+  });
+
+  it('discards oldest snapshots to stay within the UTF-8 byte limit', async () => {
+    const snapshot: QuizSnapshot = {
+      id: 'newest', timestamp: 1, url: 'mock://url', question: 'Question', optionCount: 0,
+      rawHtml: 'é'.repeat(MAX_SNAPSHOT_BYTES / 3),
+    };
+    (global as any).browser.storage.local.get.mockResolvedValue({
+      rinSnapshots: [{ ...snapshot, id: 'older' }],
+    });
+
+    await saveSnapshotToStorage(snapshot);
+
+    const snapshots = (global as any).browser.storage.local.set.mock.calls[0][0].rinSnapshots;
+    expect(snapshots.map((entry: QuizSnapshot) => entry.id)).toEqual(['newest']);
+    expect(new TextEncoder().encode(JSON.stringify(snapshots)).byteLength).toBeLessThanOrEqual(MAX_SNAPSHOT_BYTES);
+  });
+
+  it('does not retain a single snapshot larger than the byte limit', async () => {
+    await saveSnapshotToStorage({
+      id: 'oversized', timestamp: 1, url: 'mock://url', question: 'Question', optionCount: 0,
+      rawHtml: 'x'.repeat(MAX_SNAPSHOT_BYTES),
+    });
+
+    expect((global as any).browser.storage.local.set).toHaveBeenCalledWith({ rinSnapshots: [] });
   });
 
   it('handles storage failure gracefully without throwing', async () => {
@@ -93,7 +121,6 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     const mockQuiz: QuizData = {
       question: 'Fail test',
       options: [],
-      optionElements: [],
       containerElement: {} as any,
       rawHtml: '<div>Fail</div>',
       detectedAt: 12345,
@@ -111,7 +138,6 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     const mockQuiz: QuizData = {
       question: 'No browser test',
       options: [],
-      optionElements: [],
       containerElement: {} as any,
       rawHtml: '<div>No browser</div>',
       detectedAt: 12345,
@@ -132,7 +158,6 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     const mockQuiz: QuizData = {
       question: 'Root capture test',
       options: [],
-      optionElements: [],
       containerElement: {} as any,
       rawHtml: '<div>Quiz</div>',
       detectedAt: 100,
@@ -193,7 +218,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
 
     window.dispatchEvent(altShiftSEvent);
     expect(preventDefaultSpy).toHaveBeenCalled();
-    expect(onCapture).toHaveBeenCalledTimes(1);
+    await vi.waitFor(() => expect(onCapture).toHaveBeenCalledTimes(1));
     expect(onCapture.mock.calls[0][0].trigger).toBe('manual_hotkey');
 
     // Pressing Ctrl+Alt+S also triggers capture
@@ -206,7 +231,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
       cancelable: true,
     });
     window.dispatchEvent(ctrlAltSEvent);
-    expect(onCapture).toHaveBeenCalledTimes(2);
+    await vi.waitFor(() => expect(onCapture).toHaveBeenCalledTimes(2));
 
     // Cleanup stops listening
     cleanup();
@@ -246,7 +271,6 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     const mockQuiz: QuizData = {
       question: 'No auto-download question',
       options: [],
-      optionElements: [],
       containerElement: {} as any,
       rawHtml: '<div>Quiz</div>',
       detectedAt: 12345,
@@ -265,4 +289,3 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     expect(createObjectURLMock).toHaveBeenCalledTimes(1);
   });
 });
-

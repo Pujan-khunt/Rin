@@ -19,17 +19,6 @@ export interface QuizChoice {
 }
 
 /**
- * Serializable choice with a zero-based position. The extension's DOM-bound
- * DetectedOption also holds an element reference used by its actors.
- */
-export interface QuizOption extends QuizChoice {
-  /**
-   * Zero-based index of this option within the quiz's option list.
-   */
-  index: number;
-}
-
-/**
  * Normalized network payload transmitted to the solver proxy (`POST /solve`).
  *
  * Contains the extracted problem statement and list of choices required by the

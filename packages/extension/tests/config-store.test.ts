@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConfigStore, configStore } from '@/config/store';
-import { DEFAULT_CONFIG, DEFAULT_MODEL } from '@/config/defaults';
+import { DEFAULT_CONFIG } from '@/config/defaults';
+import { DEFAULT_MODEL_ID } from '@rin/shared';
 import { SELECTORS } from '@/dom/selectors';
 
 describe('ConfigStore', () => {
@@ -41,7 +42,6 @@ describe('ConfigStore', () => {
   describe('initial state and get()', () => {
     it('initializes with DEFAULT_CONFIG', () => {
       expect(store.get()).toEqual(DEFAULT_CONFIG);
-      expect(store.getConfig()).toEqual(DEFAULT_CONFIG);
     });
 
     it('can be initialized with custom initial config', () => {
@@ -156,7 +156,7 @@ describe('ConfigStore', () => {
         store.save({
           enabled: false,
           actorMode: 'auto',
-          model: DEFAULT_MODEL,
+          model: DEFAULT_MODEL_ID,
         })
       ).rejects.toThrow('browser.storage.local is unavailable');
     });

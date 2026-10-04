@@ -8,9 +8,7 @@ describe('DOM Selectors', () => {
     expect(SELECTORS.app.root).toBe('#root');
     expect(SELECTORS.meeting.container).toBeDefined();
     expect(SELECTORS.quiz.root).toBe('div.m-quiz');
-    expect(SELECTORS.quiz.title).toBe('h1.dark.bold');
     expect(SELECTORS.quiz.questionMarkdown).toBe('.m-problem-description__markdown');
-    expect(SELECTORS.quiz.choicesList).toBe('.m-problem-choices__list');
     expect(SELECTORS.quiz.choiceItem).toBe('.m-problem-choices__list > a.choice');
     expect(SELECTORS.quiz.choiceLabel).toBe('.choice__name');
     expect(SELECTORS.quiz.choiceText).toBe('.choice__text');

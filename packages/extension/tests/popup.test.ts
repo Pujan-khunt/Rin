@@ -97,7 +97,7 @@ describe('Popup UI Interaction', () => {
 
     expect(btnAuto.classList.contains('active')).toBe(true);
     expect(btnAssisted.classList.contains('active')).toBe(false);
-    expect(modeDesc.textContent).toContain('Automatically clicks and submits');
+    expect(modeDesc.textContent).toContain('Clicks the recommended choice after solving');
     expect(saveConfigSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         actorMode: 'auto',

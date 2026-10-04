@@ -1,9 +1,8 @@
 import type { RinConfig } from '@/config/types';
-
-export const DEFAULT_MODEL = 'deepseek/deepseek-v4-flash';
+import { DEFAULT_MODEL_ID } from '@rin/shared';
 
 export const DEFAULT_CONFIG: RinConfig = {
   enabled: true,
   actorMode: 'assisted',
-  model: DEFAULT_MODEL,
+  model: DEFAULT_MODEL_ID,
 };

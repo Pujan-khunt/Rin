@@ -64,13 +64,6 @@ export class ConfigStore {
   }
 
   /**
-   * Backward-compatible alias for get().
-   */
-  getConfig(): RinConfig {
-    return this.get();
-  }
-
-  /**
    * Subscribes to real-time configuration changes from browser.storage.
    * Returns an unsubscribe function to cleanly detach the listener.
    */

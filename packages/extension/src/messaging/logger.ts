@@ -24,7 +24,7 @@ export function isBackgroundContext(): boolean {
  */
 export function prettyPrintLog(payload: LogPayload, forceBrowserStyle?: boolean): void {
   const { level, tag, message, timestamp } = payload;
-  const data = payload.data !== undefined ? payload.data : payload.context;
+  const data = payload.data;
   const timeStr = formatTimestamp(timestamp);
 
   const isBrowser =
@@ -81,7 +81,6 @@ function dispatch(level: LogLevel, tag: string, message: string, data?: unknown)
     tag,
     message,
     data,
-    context: data,
     timestamp: Date.now(),
   };
 

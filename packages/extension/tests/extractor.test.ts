@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, vi } from 'vitest';
 import { JSDOM } from 'jsdom';
 import {
   extractQuiz,
@@ -9,6 +9,29 @@ import {
 } from '@/quiz/extractor';
 
 describe('Quiz Extractor', () => {
+  it('extracts a production quiz without serializing its HTML', () => {
+    const dom = new JSDOM(`
+      <div class="m-quiz">
+        <div class="m-problem-description__markdown"><p>Question</p></div>
+        <div class="m-problem-choices__list">
+          <a class="choice"><span class="choice__name">A</span><span class="choice__text">Answer</span></a>
+        </div>
+      </div>`);
+    const root = dom.window.document.querySelector<HTMLElement>('.m-quiz')!;
+    const serialize = vi.spyOn(root, 'outerHTML', 'get');
+    vi.stubEnv('DEV', false);
+    try {
+      const quiz = extractQuiz(root);
+      expect(quiz?.question).toBe('Question');
+      expect(quiz?.options[0].text).toBe('Answer');
+      expect(quiz?.rawHtml).toBeUndefined();
+      expect(serialize).not.toHaveBeenCalled();
+    } finally {
+      vi.unstubAllEnvs();
+      serialize.mockRestore();
+    }
+  });
+
   describe('normalizeWhitespace', () => {
     it('returns empty string for null, undefined, or whitespace-only inputs', () => {
       expect(normalizeWhitespace(null)).toBe('');
@@ -169,12 +192,6 @@ describe('Quiz Extractor', () => {
         element: choiceNodes[3],
       });
       expect(data!.options[0].element).toBe(choiceNodes[0]);
-      expect(data!.optionElements).toEqual([
-        choiceNodes[0],
-        choiceNodes[1],
-        choiceNodes[2],
-        choiceNodes[3],
-      ]);
     });
 
     it('extracts a True/False 2-option quiz', () => {

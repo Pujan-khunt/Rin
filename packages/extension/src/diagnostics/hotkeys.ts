@@ -1,10 +1,5 @@
 import type { QuizSnapshot } from '@/diagnostics/recorder';
-import {
-  createManualSnapshot,
-  formatDownloadableHtml,
-  triggerSnapshotDownload,
-  saveSnapshotToStorage,
-} from '@/diagnostics/recorder';
+import { recordManualSnapshot } from '@/diagnostics/recorder';
 
 /**
  * Sets up a dev-only hotkey listener on the window.
@@ -27,13 +22,7 @@ export function setupDevSnapshotHotkey(
       event.preventDefault();
       event.stopPropagation();
 
-      const snapshot = createManualSnapshot();
-      triggerSnapshotDownload(
-        formatDownloadableHtml(snapshot.rootHtml ?? snapshot.rawHtml, `Rin Manual Snapshot - ${snapshot.timestamp}`),
-        `rin-manual-snapshot-${snapshot.timestamp}.html`
-      );
-      saveSnapshotToStorage(snapshot).catch(() => {});
-      onCapture?.(snapshot);
+      recordManualSnapshot().then((snapshot) => onCapture?.(snapshot)).catch(() => {});
     }
   };
 
