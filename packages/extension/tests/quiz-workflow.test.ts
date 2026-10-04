@@ -1,5 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { JSDOM } from 'jsdom';
 import { QuizWorkflow } from '@/quiz/workflow';
+import { extractQuiz } from '@/quiz/extractor';
 import type { Actor } from '@/actors/types';
 import type { QuizData } from '@/quiz/types';
 import type { BackgroundResponse } from '@/messaging/types';
@@ -8,6 +10,7 @@ describe('QuizWorkflow', () => {
   let mockActor: Actor;
   let mockSolver: any;
   let mockQuiz: QuizData;
+  let solvedResponse: BackgroundResponse;
   let mockOnQuizProcessed: ReturnType<typeof vi.fn>;
 
   beforeEach(() => {
@@ -17,7 +20,7 @@ describe('QuizWorkflow', () => {
       cleanup: vi.fn(),
     };
 
-    mockSolver = vi.fn().mockResolvedValue({
+    solvedResponse = {
       type: 'QUIZ_SOLVED',
       payload: {
         chosenIndex: 0,
@@ -25,21 +28,21 @@ describe('QuizWorkflow', () => {
         source: 'llm',
         latencyMs: 100,
       },
-    } as BackgroundResponse);
+    };
+    mockSolver = vi.fn().mockResolvedValue(solvedResponse);
 
     mockOnQuizProcessed = vi.fn();
 
-    mockQuiz = {
-      question: 'Test Question',
-      options: [
-        { label: 'A', text: 'Option 1', index: 0, element: {} as HTMLElement },
-        { label: 'B', text: 'Option 2', index: 1, element: {} as HTMLElement },
-      ],
-      containerElement: { isConnected: true } as any,
-      rawHtml: '',
-      detectedAt: Date.now(),
-      alreadyAnswered: false,
-    };
+    const dom = new JSDOM(`
+      <div class="m-quiz">
+        <div class="m-problem-description__markdown"><p>Test Question</p></div>
+        <div class="m-problem-choices__list">
+          <a class="choice"><div class="choice__name">A</div><div class="choice__text">Option 1</div></a>
+          <a class="choice"><div class="choice__name">B</div><div class="choice__text">Option 2</div></a>
+        </div>
+      </div>
+    `);
+    mockQuiz = extractQuiz(dom.window.document.querySelector<HTMLElement>('.m-quiz')!)!;
   });
 
   it('skips processing if Rin is disabled in config', async () => {
@@ -71,6 +74,100 @@ describe('QuizWorkflow', () => {
     expect(mockSolver).not.toHaveBeenCalled();
     expect(mockActor.act).not.toHaveBeenCalled();
     expect(mockOnQuizProcessed).not.toHaveBeenCalled();
+  });
+
+  it('skips solving if a choice was selected after extraction but before processing', async () => {
+    const workflow = new QuizWorkflow(
+      mockActor,
+      { actorMode: 'assisted', enabled: true },
+      mockSolver,
+      mockOnQuizProcessed
+    );
+    mockQuiz.options[1].element.classList.add('choice--selected');
+    expect(mockQuiz.alreadyAnswered).toBe(false);
+
+    await workflow.process(mockQuiz);
+
+    expect(mockSolver).not.toHaveBeenCalled();
+    expect(mockActor.act).not.toHaveBeenCalled();
+    expect(mockOnQuizProcessed).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    { mode: 'assisted', selectedIndex: 0 },
+    { mode: 'assisted', selectedIndex: 1 },
+    { mode: 'auto', selectedIndex: 0 },
+    { mode: 'auto', selectedIndex: 1 },
+  ] as const)(
+    'skips $mode action if option $selectedIndex is selected while inference is pending',
+    async ({ mode, selectedIndex }) => {
+      let resolveSolve!: (response: BackgroundResponse) => void;
+      mockSolver.mockReturnValue(new Promise<BackgroundResponse>((resolve) => {
+        resolveSolve = resolve;
+      }));
+      const actor: Actor = { ...mockActor, mode };
+      const workflow = new QuizWorkflow(
+        actor,
+        { actorMode: mode, enabled: true },
+        mockSolver,
+        mockOnQuizProcessed
+      );
+
+      const processing = workflow.process(mockQuiz);
+      expect(mockSolver).toHaveBeenCalledTimes(1);
+      expect(actor.act).not.toHaveBeenCalled();
+
+      const selected = mockQuiz.options[selectedIndex].element;
+      selected.classList.add('choice--selected');
+      expect(mockQuiz.alreadyAnswered).toBe(false);
+      resolveSolve(solvedResponse);
+      await processing;
+
+      expect(actor.act).not.toHaveBeenCalled();
+      expect(mockOnQuizProcessed).not.toHaveBeenCalled();
+      expect(selected.classList.contains('choice--selected')).toBe(true);
+    }
+  );
+
+  it('acts after pending inference resolves if no option has been selected', async () => {
+    let resolveSolve!: (response: BackgroundResponse) => void;
+    mockSolver.mockReturnValue(new Promise<BackgroundResponse>((resolve) => {
+      resolveSolve = resolve;
+    }));
+    const workflow = new QuizWorkflow(
+      mockActor,
+      { actorMode: 'assisted', enabled: true },
+      mockSolver,
+      mockOnQuizProcessed
+    );
+
+    const processing = workflow.process(mockQuiz);
+    expect(mockSolver).toHaveBeenCalledTimes(1);
+    expect(mockActor.act).not.toHaveBeenCalled();
+
+    resolveSolve(solvedResponse);
+    await processing;
+
+    expect(mockActor.act).toHaveBeenCalledTimes(1);
+    expect(mockOnQuizProcessed).toHaveBeenCalledWith(mockQuiz);
+  });
+
+  it('ignores a selected choice outside the current quiz', async () => {
+    const document = mockQuiz.containerElement.ownerDocument;
+    const otherChoice = document.createElement('a');
+    otherChoice.className = 'choice choice--selected';
+    document.body.appendChild(otherChoice);
+    const workflow = new QuizWorkflow(
+      mockActor,
+      { actorMode: 'assisted', enabled: true },
+      mockSolver,
+      mockOnQuizProcessed
+    );
+
+    await workflow.process(mockQuiz);
+
+    expect(mockActor.act).toHaveBeenCalledTimes(1);
+    expect(mockOnQuizProcessed).toHaveBeenCalledWith(mockQuiz);
   });
 
   it('sends solve request with mapped options and model, invokes actor and onQuizProcessed on QUIZ_SOLVED', async () => {
@@ -198,7 +295,10 @@ describe('QuizWorkflow', () => {
       mockSolver,
       mockOnQuizProcessed
     );
-    mockQuiz.containerElement = { isConnected: false } as any;
+    mockSolver.mockImplementation(async () => {
+      mockQuiz.containerElement.remove();
+      return solvedResponse;
+    });
 
     await workflow.process(mockQuiz);
 

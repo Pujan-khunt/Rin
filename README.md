@@ -150,7 +150,7 @@ Vitest covers extraction, observers, actors, configuration, messaging, entrypoin
 Current behavior to account for:
 
 - Hydration requires a nonempty question, at least one option, and at least one nonempty option text. It does not wait for every option to populate.
-- Already-answered detection is captured before solving. After inference, the workflow checks enablement and quiz connectivity, but does not reread the selected choice, countdown, or question identity.
+- The workflow checks for a selected choice in the current quiz before solving and again before acting, protecting student answers made during inference in both modes. After inference it also checks enablement and quiz connectivity, but does not reread the countdown or question identity.
 - Duplicate suppression ignores option-only changes. A failed solve is not automatically retried for the same quiz element and question.
 - Meeting removal observation is usually shallow on the classroom's immediate parent; removing a more distant ancestor can bypass that observer.
 - Settings are mutable references. Although `save()` replaces its cache only after a successful write, callers such as the popup can mutate that cache beforehand, and the popup does not roll back failed writes.

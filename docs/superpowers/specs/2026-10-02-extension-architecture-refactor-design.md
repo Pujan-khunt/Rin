@@ -26,6 +26,7 @@ Paths below are relative to `packages/extension/src/`:
 | `meeting/watcher.ts` | Mount/removal observation and meeting re-arming. |
 | `quiz/types.ts` | DOM-bound choices, quiz data, and observer callbacks. |
 | `quiz/extractor.ts` | Question/option text parsing, hydration and selection detection. |
+| `quiz/state.ts` | Shared live selected-choice check scoped to a quiz container. |
 | `quiz/observer.ts` | Classroom mutation observation and duplicate suppression. |
 | `quiz/workflow.ts` | Enabled/answered guards, solve request, actor execution, hook. |
 | `solver/client.ts` | Authenticated worker request with a five-second timeout. |
@@ -73,7 +74,7 @@ Question parsing preserves internal `<pre>` whitespace after trimming. Other blo
 
 The observer deduplicates by element reference and question text. It observes child-list and text mutations, not attribute changes, and ignores option-only differences when determining whether to emit.
 
-The workflow sends only serializable question/options/model data. It catches errors and skips actors for `ERROR` or unexpected responses. After solving it checks current enablement and quiz connectivity. It does not verify that the question is unchanged, every option is connected, the student has not answered meanwhile, or time remains. Actor mode is resolved through the workflow's current actor at execution time.
+The workflow checks both the extracted answered flag and current quiz selection before sending serializable question/options/model data. The extractor and workflow share `isQuizAnswered()` from `quiz/state.ts`. It catches errors and skips actors for `ERROR` or unexpected responses. After solving it checks current enablement, quiz connectivity, and live selection. Any selected option skips both the actor and processed hook, including a selection matching the recommendation. No asynchronous operation separates the final selection check from the actor call. It does not verify that the question is unchanged, every option is connected, or time remains. Actor mode is resolved through the workflow's current actor at execution time.
 
 The assisted actor stores and restores full inline CSS on the chosen element and its descendants. The auto actor dispatches pointer/mouse events and performs no acceptance check. Invalid option indexes are ignored by either actor.
 

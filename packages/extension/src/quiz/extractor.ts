@@ -2,6 +2,7 @@ import { SELECTORS } from '@/dom/selectors';
 import { findSelfOrDescendant, normalizeWhitespace } from '@/dom/utils';
 import { logger } from '@/messaging/logger';
 import type { DetectedOption, QuizData } from '@/quiz/types';
+import { isQuizAnswered } from '@/quiz/state';
 
 export { normalizeWhitespace };
 
@@ -83,7 +84,7 @@ export function extractQuiz(container: HTMLElement): QuizData | null {
     return null;
   }
 
-  const alreadyAnswered = root.querySelector(SELECTORS.quiz.choiceSelected) !== null;
+  const alreadyAnswered = isQuizAnswered(root);
 
   logger.info(
     'Extractor',

@@ -5,13 +5,13 @@ import type { QuizData } from '@/quiz/types';
 import type { BackgroundResponse } from '@/messaging/types';
 import { sendToBackground } from '@/messaging/messenger';
 import { logger } from '@/messaging/logger';
+import { isQuizAnswered } from '@/quiz/state';
 
 export type SolverSender = (msg: { type: 'SOLVE_QUIZ'; payload: QuizInput }) => Promise<BackgroundResponse>;
 
 /**
  * Coordinates guards, the injected solver sender, current actor, and processed hook.
- * After solving, checks enablement and quiz connectivity; selected-choice state
- * remains the snapshot taken during extraction.
+ * Checks live selection before solving and before acting on the result.
  */
 export class QuizWorkflow {
   constructor(
@@ -48,7 +48,7 @@ export class QuizWorkflow {
       return;
     }
 
-    if (quiz.alreadyAnswered) {
+    if (quiz.alreadyAnswered || isQuizAnswered(quiz.containerElement)) {
       logger.info('QuizWorkflow', 'Quiz already answered by user, skipping solve.');
       return;
     }
@@ -83,6 +83,11 @@ export class QuizWorkflow {
 
       if (!this.config.enabled || quiz.containerElement?.isConnected === false) {
         logger.info('QuizWorkflow', 'Aborting actor execution: disabled or container detached.');
+        return;
+      }
+
+      if (isQuizAnswered(quiz.containerElement)) {
+        logger.info('QuizWorkflow', 'Quiz answered while solving, skipping actor execution.');
         return;
       }
 
