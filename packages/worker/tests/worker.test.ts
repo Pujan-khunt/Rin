@@ -10,7 +10,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
   const authHeaders = {
     'Content-Type': 'application/json',
     [CLIENT_HEADER_NAME]: TEST_CLIENT_KEY,
-    Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
+    Origin: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop',
   };
 
   const defaultEnv = {
@@ -37,13 +37,13 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
   it('handles CORS OPTIONS preflight from extension origin', async () => {
     const request = new Request('http://localhost:8787/solve', {
       method: 'OPTIONS',
-      headers: { Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456' },
+      headers: { Origin: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop' },
     });
     const response = await worker.fetch(request, defaultEnv);
 
     expect(response.status).toBe(204);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe(
-      'chrome-extension://abcdefghijklmnopqrstuvwxyz123456'
+      'chrome-extension://abcdefghijklmnopabcdefghijklmnop'
     );
     expect(response.headers.get('Access-Control-Allow-Headers')).toContain(CLIENT_HEADER_NAME);
     expect(response.headers.get('Vary')).toBe('Origin');
@@ -58,6 +58,22 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
 
     expect(response.status).toBe(403);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe('null');
+  });
+
+  it.each(['OPTIONS', 'POST'])('rejects localhost lookalike hosts for %s before inference', async (method) => {
+    const request = new Request('http://localhost:8787/solve', {
+      method,
+      headers: { ...authHeaders, Origin: 'http://localhost.example.com' },
+      ...(method === 'POST' ? {
+        body: JSON.stringify({ question: 'Test?', options: [{ label: 'A', text: '1' }] }),
+      } : {}),
+    });
+
+    const response = await worker.fetch(request, defaultEnv);
+
+    expect(response.status).toBe(403);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe('null');
+    expect(global.fetch).not.toHaveBeenCalled();
   });
 
   it('rejects CORS OPTIONS preflight missing Origin header with 403', async () => {
@@ -138,7 +154,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
+        Origin: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop',
       },
       body: JSON.stringify({
         question: 'What is usually cache line size?',
@@ -157,7 +173,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
+        Origin: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop',
         [CLIENT_HEADER_NAME]: 'wrong-key',
       },
       body: JSON.stringify({
@@ -175,7 +191,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Origin: 'chrome-extension://abcdefghijklmnopqrstuvwxyz123456',
+        Origin: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop',
         [CLIENT_HEADER_NAME]: 'my-production-secret',
       },
       body: JSON.stringify({

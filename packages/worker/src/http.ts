@@ -7,22 +7,40 @@ export interface Env {
 }
 
 /**
- * Checks a present Origin against extension and local-development prefixes.
- * Does not parse hostnames or restrict requests to a particular extension ID.
+ * Validates a serialized extension or local-development origin.
+ * Extension hostnames must be valid IDs, but are not restricted to Rin's ID.
  */
 export function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
 
-  return (
-    origin.startsWith('chrome-extension://') ||
-    origin.startsWith('moz-extension://') ||
-    origin.startsWith('http://localhost') ||
-    origin.startsWith('http://127.0.0.1')
-  );
+  let url: URL;
+  try {
+    url = new URL(origin);
+  } catch {
+    return false;
+  }
+
+  // Origin headers contain only scheme and authority, never a full resource URL.
+  if (origin !== `${url.protocol}//${url.host}` || url.username || url.password) {
+    return false;
+  }
+
+  if (url.protocol === 'http:') {
+    return url.hostname === 'localhost' || url.hostname === '127.0.0.1';
+  }
+
+  if (url.port) return false;
+  if (url.protocol === 'chrome-extension:') {
+    return /^[a-p]{32}$/.test(url.hostname);
+  }
+  if (url.protocol === 'moz-extension:') {
+    return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(url.hostname);
+  }
+  return false;
 }
 
 /**
- * Computes CORS headers using the Origin prefix check.
+ * Computes CORS headers using the validated Origin.
  */
 export function getCorsHeaders(origin: string | null): Record<string, string> {
   const allowed = isAllowedOrigin(origin);

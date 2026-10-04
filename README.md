@@ -136,7 +136,7 @@ Deployment uses the `rin-solver` worker and custom domain `rin-worker.pujankhunt
 
 The solver receives question text, option labels/text/indexes, and a model ID. DOM element references, raw HTML, and page URLs are not sent in solver requests. The worker sends question text and option labels/text to OpenRouter; the model's response is parsed for its choice, and reasoning is not exposed in the extension response. Development snapshots remain in browser local storage unless manually downloaded.
 
-The extension requests `storage` permission and host permissions for Scaler and the production worker. The worker requires a present `Origin` beginning with `chrome-extension://`, `moz-extension://`, `http://localhost`, or `http://127.0.0.1`, plus the client key. These are prefix checks, not a specific extension ID allowlist or parsed hostname validation. There is no application-level rate limiting.
+The extension requests `storage` permission and host permissions for Scaler and the production worker. The worker requires a valid serialized `Origin`, plus the client key. Accepted origins are `chrome-extension://` with a 32-character ID using letters `a` through `p`, `moz-extension://` with a UUID hostname, and HTTP origins whose hostname is exactly `localhost` or `127.0.0.1` (with an optional port). Lookalike hosts, credentials, paths, queries, fragments, and malformed origins are rejected. This validates extension ID format, not a specific extension ID allowlist. There is no application-level rate limiting.
 
 ## Verification and current limits
 

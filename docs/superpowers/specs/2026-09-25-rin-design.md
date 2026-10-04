@@ -155,12 +155,12 @@ The intended endpoint is `POST /solve`; the handler branches on method and **doe
 
 1. `OPTIONS` checks Origin and returns 204 or 403 without authenticating the client key.
 2. Other methods except `POST` return 405.
-3. `POST` requires Origin to start with `chrome-extension://`, `moz-extension://`, `http://localhost`, or `http://127.0.0.1`; missing or rejected origins return 403.
+3. `POST` requires a valid serialized Origin: `chrome-extension://` with a 32-character `a`–`p` ID, `moz-extension://` with a UUID hostname, or HTTP with hostname exactly `localhost` or `127.0.0.1` and an optional port. Missing or rejected origins return 403.
 4. Missing/blank `RIN_CLIENT_KEY` or `OPENROUTER_API_KEY` configuration returns 500. A missing/mismatched `X-Rin-Client` header returns 401.
 5. Parsed input must have a nonblank string question and a nonempty options array. Other schema details are not checked. Failed validation returns 400.
 6. Solving succeeds with 200 and `SolveResult`. JSON decoding, upstream, and answer parsing exceptions return 500 and `{ error: message }`.
 
-CORS reflects an accepted Origin, otherwise uses `null`, allows `POST, OPTIONS` and `Content-Type, X-Rin-Client`, and sets `Vary: Origin`. Origin checks are string prefixes, not a specific extension allowlist or hostname parser. The shared client key is embedded in the extension and there is no application-level rate limit.
+CORS reflects an accepted Origin, otherwise uses `null`, allows `POST, OPTIONS` and `Content-Type, X-Rin-Client`, and sets `Vary: Origin`. Origin validation parses the URL, rejects credentials and resource URL components, and validates hostnames. Extension ID format is checked without a specific extension allowlist. The shared client key is embedded in the extension and there is no application-level rate limit.
 
 `OPENROUTER_API_KEY` stays on the worker. `wrangler.jsonc` names the worker `rin-solver`, uses compatibility date `2026-09-20`, configures the custom domain, and enables persisted invocation logs and traces at sampling rate 1.
 
