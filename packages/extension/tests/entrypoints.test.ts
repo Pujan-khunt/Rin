@@ -9,6 +9,7 @@ import { QuizObserver } from '@/quiz/observer';
 import { HudActor } from '@/actors/hud';
 import { ClickActor } from '@/actors/click';
 import { WorkerClient } from '@/solver/client';
+import { QuizWorkflow } from '@/quiz/workflow';
 
 describe('Background Entrypoint', () => {
   let messageListener: Function;
@@ -476,7 +477,20 @@ describe('Drona Content Script Entrypoint', () => {
     expect(hudActSpy).toHaveBeenCalledTimes(1);
     expect(clickActSpy).not.toHaveBeenCalled();
 
-    // Hot-swap via storage change event
+    const setActorSpy = vi.spyOn(QuizWorkflow.prototype, 'setActor');
+
+    // Storage change without actorMode change does NOT recreate or swap actor
+    storageListener(
+      {
+        rinConfig: {
+          newValue: { actorMode: 'assisted', enabled: true, model: 'custom-model' },
+        },
+      },
+      'local'
+    );
+    expect(setActorSpy).not.toHaveBeenCalled();
+
+    // Hot-swap via storage change event when actorMode changes
     storageListener(
       {
         rinConfig: {
@@ -485,6 +499,7 @@ describe('Drona Content Script Entrypoint', () => {
       },
       'local'
     );
+    expect(setActorSpy).toHaveBeenCalledTimes(1);
 
     // Quiz 2 under auto mode
     await quizCallbacks.onQuiz(fakeQuiz);

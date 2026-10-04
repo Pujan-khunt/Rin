@@ -185,8 +185,25 @@ describe('ConfigStore', () => {
         enabled: false,
       };
 
-      expect(listener).toHaveBeenCalledWith(expectedConfig);
+      expect(listener).toHaveBeenCalledWith(expectedConfig, DEFAULT_CONFIG);
       expect(store.get()).toEqual(expectedConfig);
+
+      // Trigger second update and verify oldConfig reflects previous state
+      storageListener!(
+        {
+          rinConfig: {
+            newValue: { actorMode: 'assisted', enabled: true },
+          },
+        },
+        'local'
+      );
+
+      const nextExpectedConfig = {
+        ...DEFAULT_CONFIG,
+        actorMode: 'assisted',
+        enabled: true,
+      };
+      expect(listener).toHaveBeenLastCalledWith(nextExpectedConfig, expectedConfig);
 
       // Unsubscribe cleanly
       unsubscribe();

@@ -48,10 +48,12 @@ export default defineContentScript({
     );
 
     // 4. React to Real-Time Configuration Updates
-    const unsubscribeConfig = configStore.subscribe((newConfig) => {
+    const unsubscribeConfig = configStore.subscribe((newConfig, oldConfig) => {
       logger.info('ContentScript', 'Settings updated in real-time', newConfig);
       workflow.setConfig(newConfig);
-      workflow.setActor(createActor(newConfig.actorMode));
+      if (newConfig.actorMode !== oldConfig.actorMode) {
+        workflow.setActor(createActor(newConfig.actorMode));
+      }
     });
 
     // 5. Initialize Symmetrical Lifecycle Watchers

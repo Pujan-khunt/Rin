@@ -83,11 +83,12 @@ export class ConfigStore {
 
     const handler = (changes: Record<string, { newValue?: any }>, area: string) => {
       if (area === 'local' && changes.rinConfig) {
+        const oldConfig = this.cachedConfig;
         this.cachedConfig = {
           ...DEFAULT_CONFIG,
           ...(changes.rinConfig.newValue || {}),
         };
-        listener(this.cachedConfig);
+        listener(this.cachedConfig, oldConfig);
       }
     };
 

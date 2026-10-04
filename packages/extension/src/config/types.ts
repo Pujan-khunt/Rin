@@ -6,4 +6,4 @@ export interface RinConfig {
   model?: string;
 }
 
-export type ConfigChangeListener = (newConfig: RinConfig) => void;
+export type ConfigChangeListener = (newConfig: RinConfig, oldConfig: RinConfig) => void;
