@@ -46,7 +46,7 @@ Paths below are relative to `packages/extension/src/`:
 
 The content entrypoint loads the `configStore` singleton and constructs the initial actor using `createActor()`. It injects that actor, initial settings, `sendToBackground`, and an optional development snapshot hook into `QuizWorkflow`.
 
-A storage subscription first updates workflow settings, then swaps the actor when its mode changes. `setActor()` cleans up the previous actor. Setting `enabled: false` cleans up the current actor; watchers continue running and processing guards skip solving.
+A storage subscription first updates workflow settings, then swaps the actor when its mode changes. `setActor()` cleans up the previous actor. Setting `enabled: false` cleans up the current actor; watchers continue running and processing guards skip solving. A disabled-to-enabled transition restarts observation of the current meeting, re-extracting any existing quiz through the workflow's answered guards. Other settings changes preserve observer deduplication.
 
 `QuizObserver.onQuiz` invokes the workflow. `MeetingWatcher.onEnter` starts quiz observation, and `onLeave` stops it and cleans up the actor. Content-context invalidation unsubscribes settings, stops both watchers, cleans up the actor, and removes the development hotkey listener.
 

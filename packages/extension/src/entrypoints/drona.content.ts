@@ -47,6 +47,10 @@ export default defineContentScript({
       onQuizProcessed
     );
 
+    const quizObserver = new QuizObserver({
+      onQuiz: (quiz) => workflow.process(quiz),
+    });
+
     // 4. React to Real-Time Configuration Updates
     const unsubscribeConfig = configStore.subscribe((newConfig, oldConfig) => {
       logger.info('ContentScript', 'Settings updated in real-time', newConfig);
@@ -54,13 +58,15 @@ export default defineContentScript({
       if (newConfig.actorMode !== oldConfig.actorMode) {
         workflow.setActor(createActor(newConfig.actorMode));
       }
+      if (newConfig.enabled && !oldConfig.enabled) {
+        const meetingContainer = quizObserver.getContainer();
+        if (meetingContainer) {
+          quizObserver.start(meetingContainer);
+        }
+      }
     });
 
     // 5. Initialize Symmetrical Lifecycle Watchers
-    const quizObserver = new QuizObserver({
-      onQuiz: (quiz) => workflow.process(quiz),
-    });
-
     const meetingWatcher = new MeetingWatcher({
       onEnter: (meetingContainer) => quizObserver.start(meetingContainer),
       onLeave: () => {

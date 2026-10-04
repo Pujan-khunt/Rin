@@ -5,7 +5,7 @@ Rin is a Manifest V3 browser extension that detects multiple-choice quizzes in S
 - **Assisted mode (default):** adds a light purple background (`#e8d5f5`) and purple outline to the recommended choice. The student selects the answer.
 - **Auto mode:** dispatches synthetic pointer and mouse events to the recommended choice. Submission depends on Scaler's event handling; Rin does not confirm that the platform accepted the answer.
 
-Rin starts enabled. The popup controls enablement and execution mode, and storage changes update content scripts already running in open tabs.
+Rin starts enabled. The popup controls enablement and execution mode, and storage changes update content scripts already running in open tabs. Enabling Rin during an existing quiz immediately rechecks it; answered quizzes are skipped.
 
 ## How it works
 

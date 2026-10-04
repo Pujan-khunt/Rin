@@ -10,6 +10,7 @@ import { HudActor } from '@/actors/hud';
 import { ClickActor } from '@/actors/click';
 import { WorkerClient } from '@/solver/client';
 import { QuizWorkflow } from '@/quiz/workflow';
+import type { ConfigChangeListener } from '@/config/types';
 
 describe('Background Entrypoint', () => {
   let messageListener: Function;
@@ -238,6 +239,69 @@ describe('Drona Content Script Entrypoint', () => {
         sendMessage: vi.fn().mockResolvedValue({ success: true }),
       },
     };
+  });
+
+  it.each([false, true])('rechecks an existing quiz on enablement (answered: %s)', async (answered) => {
+    const disabledConfig = { actorMode: 'assisted' as const, enabled: false };
+    vi.spyOn(configStore, 'load').mockResolvedValue(disabledConfig);
+    let onConfigChange!: ConfigChangeListener;
+    vi.spyOn(configStore, 'subscribe').mockImplementation((listener) => {
+      onConfigChange = listener;
+      return () => {};
+    });
+    let onEnter!: (container: HTMLElement) => void;
+    vi.spyOn(MeetingWatcher.prototype, 'start').mockImplementation(function (this: MeetingWatcher) {
+      onEnter = this['callbacks'].onEnter;
+    });
+    const solveSpy = vi.spyOn(messengerModule, 'sendToBackground').mockResolvedValue({
+      type: 'QUIZ_SOLVED',
+      payload: { chosenIndex: 0, chosenLabel: 'A', source: 'llm', latencyMs: 10 },
+    });
+    const actSpy = vi.spyOn(ClickActor.prototype, 'act').mockResolvedValue();
+    const container = document.createElement('div');
+    container.innerHTML = `
+      <div class="m-quiz">
+        <div class="m-problem-description__markdown"><p>Existing question</p></div>
+        <div class="m-problem-choices__list">
+        <a class="choice${answered ? ' choice--selected' : ''}">
+          <span class="choice__name">A</span><span class="choice__text">First</span>
+        </a>
+        <a class="choice"><span class="choice__name">B</span><span class="choice__text">Second</span></a>
+        </div>
+      </div>`;
+    document.body.appendChild(container);
+    await dronaEntry.main(mockCtx as any);
+    onEnter(container);
+    expect(solveSpy).not.toHaveBeenCalled();
+
+    const enabledConfig = { actorMode: 'auto' as const, enabled: true };
+    onConfigChange(enabledConfig, disabledConfig);
+    await vi.waitFor(() => {
+      expect(solveSpy).toHaveBeenCalledTimes(answered ? 0 : 1);
+      expect(actSpy).toHaveBeenCalledTimes(answered ? 0 : 1);
+    });
+
+    onConfigChange({ ...enabledConfig, model: 'custom-model' }, enabledConfig);
+    container.appendChild(document.createElement('span'));
+    await new Promise((resolve) => setTimeout(resolve, 10));
+    expect(solveSpy).toHaveBeenCalledTimes(answered ? 0 : 1);
+    invalidatedCallbacks.forEach((cb) => cb());
+  });
+
+  it('can enable Rin before entering a meeting', async () => {
+    const disabledConfig = { actorMode: 'assisted' as const, enabled: false };
+    vi.spyOn(configStore, 'load').mockResolvedValue(disabledConfig);
+    let onConfigChange!: ConfigChangeListener;
+    vi.spyOn(configStore, 'subscribe').mockImplementation((listener) => {
+      onConfigChange = listener;
+      return () => {};
+    });
+    vi.spyOn(MeetingWatcher.prototype, 'start').mockImplementation(() => {});
+    const solveSpy = vi.spyOn(messengerModule, 'sendToBackground');
+    await dronaEntry.main(mockCtx as any);
+    expect(() => onConfigChange({ ...disabledConfig, enabled: true }, disabledConfig)).not.toThrow();
+    expect(solveSpy).not.toHaveBeenCalled();
+    invalidatedCallbacks.forEach((cb) => cb());
   });
 
   it('registers meeting watcher and handles meeting lifecycle with HudActor', async () => {
