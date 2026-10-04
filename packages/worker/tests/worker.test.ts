@@ -1,8 +1,8 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { SolveResult } from '@rin/shared';
 import { CLIENT_HEADER_NAME } from '@rin/shared';
 import worker, { solve } from '@/index';
-import { OPENROUTER_CHAT_URL, DEEPSEEK_MODEL_ID } from '@/constants';
+import { OPENROUTER_CHAT_URL, DEEPSEEK_MODEL_ID, OPENROUTER_TIMEOUT_MS } from '@/constants';
 
 const TEST_CLIENT_KEY = 'test-client-key';
 
@@ -32,6 +32,35 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
         ],
       }),
     });
+  });
+
+  afterEach(() => vi.useRealTimers());
+
+  it('returns a CORS-enabled 504 when the upstream request times out', async () => {
+    vi.useFakeTimers();
+    let signal!: AbortSignal;
+    global.fetch = vi.fn((_url, init) => {
+      signal = init!.signal as AbortSignal;
+      return new Promise<never>((_resolve, reject) => {
+        signal?.addEventListener('abort', () => reject(signal.reason), { once: true });
+      });
+    });
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: authHeaders,
+      body: JSON.stringify({ question: 'Question', options: [{ label: 'A', text: 'Answer', index: 0 }] }),
+    });
+
+    const pendingResponse = worker.fetch(request, defaultEnv);
+    await vi.advanceTimersByTimeAsync(0);
+    expect(signal).toBeInstanceOf(AbortSignal);
+    await vi.advanceTimersByTimeAsync(OPENROUTER_TIMEOUT_MS);
+    const response = await pendingResponse;
+
+    expect(signal.aborted).toBe(true);
+    expect(response.status).toBe(504);
+    expect(response.headers.get('Access-Control-Allow-Origin')).toBe(authHeaders.Origin);
+    expect(await response.json()).toEqual({ error: 'OpenRouter request timed out after 10000ms' });
   });
 
   it('handles CORS OPTIONS preflight from extension origin', async () => {

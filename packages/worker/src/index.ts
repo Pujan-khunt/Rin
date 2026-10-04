@@ -2,7 +2,7 @@ import type { QuizInput, SolveResult } from '@rin/shared';
 import { DEFAULT_MODEL_ID } from '@/constants';
 import { buildChatPayload, type ChatCompletionPayload } from '@/prompt';
 import { parseQuizChoice, type ParsedQuizChoice } from '@/parser';
-import { OpenRouterClient, type InferenceClient } from '@/client';
+import { OpenRouterClient, OpenRouterTimeoutError, type InferenceClient } from '@/client';
 import {
   handleOptions,
   jsonResponse,
@@ -80,7 +80,7 @@ export default {
       return jsonResponse(result, request);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Internal solver error';
-      return errorResponse(message, request, 500);
+      return errorResponse(message, request, err instanceof OpenRouterTimeoutError ? 504 : 500);
     }
   },
 };

@@ -29,7 +29,7 @@ Paths below are relative to `packages/extension/src/`:
 | `quiz/state.ts` | Shared live selected-choice check scoped to a quiz container. |
 | `quiz/observer.ts` | Classroom mutation observation and duplicate suppression. |
 | `quiz/workflow.ts` | Enabled/answered guards, solve request, actor execution, hook. |
-| `solver/client.ts` | Authenticated worker request with a five-second timeout. |
+| `solver/client.ts` | Authenticated worker request with a twelve-second timeout. |
 | `messaging/types.ts` | Typed message/response unions and log payloads. |
 | `messaging/messenger.ts` | Promise-based runtime send bridge. |
 | `messaging/router.ts` | Typed route registration and async runtime responses. |

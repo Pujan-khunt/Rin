@@ -9,7 +9,7 @@ export class WorkerClient {
 
   constructor(
     private readonly workerUrl: string = DEFAULT_WORKER_URL,
-    private readonly timeoutMs: number = 5000,
+    private readonly timeoutMs: number = 12000,
     clientKey?: string
   ) {
     const key = clientKey || import.meta.env.RIN_CLIENT_KEY;
@@ -47,4 +47,3 @@ export class WorkerClient {
     return result;
   }
 }
-

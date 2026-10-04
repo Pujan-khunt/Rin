@@ -25,7 +25,7 @@ The content script runs at `document_idle` on Scaler pages, including matching f
 
 Quiz extraction uses Scaler-specific CSS selectors to read question text and labeled options from `div.m-quiz`. It preserves question `<pre>` formatting and keeps option element references for highlighting or clicking. The observer suppresses duplicate emissions with the same quiz element and question text.
 
-The background sends the question, options, and configured model to `https://rin-worker.pujankhunt.me/solve`. The worker requests JSON containing a choice from OpenRouter, matches the returned label to an option, and returns its index, label, model ID, and worker-side solver duration. The default model ID in the source is `deepseek/deepseek-v4-flash`; availability and answer accuracy are not verified by the automated suite. The extension aborts its worker request after five seconds.
+The background sends the question, options, and configured model to `https://rin-worker.pujankhunt.me/solve`. The worker requests JSON containing a choice from OpenRouter, matches the returned label to an option, and returns its index, label, model ID, and worker-side solver duration. The default model ID in the source is `deepseek/deepseek-v4-flash`; availability and answer accuracy are not verified by the automated suite. The worker aborts its OpenRouter request after ten seconds, including response-body reading, and returns HTTP 504 on timeout. The extension aborts its worker request after twelve seconds.
 
 ## Repository layout
 

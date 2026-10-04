@@ -70,6 +70,7 @@ describe('Extension WorkerClient', () => {
   });
 
   it('uses DEFAULT_WORKER_URL when no endpoint is provided', async () => {
+    const timeoutSpy = vi.spyOn(AbortSignal, 'timeout');
     const client = new WorkerClient();
     await client.solve({
       question: 'Default URL test?',
@@ -80,6 +81,7 @@ describe('Extension WorkerClient', () => {
       DEFAULT_WORKER_URL,
       expect.objectContaining({ method: 'POST' })
     );
+    expect(timeoutSpy).toHaveBeenCalledWith(12000);
   });
 
   it('throws an error with worker message when worker returns non-ok response', async () => {

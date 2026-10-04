@@ -147,7 +147,7 @@ There is no request cancellation on meeting leave, retry, in-flight request seri
 
 `MessageRouter.register()` infers each payload type from the message name. `listen()` attaches the runtime listener itself, returns false for unknown/missing types, and keeps recognized message channels open with `true`. Synchronous exceptions and rejected handlers become `ERROR` responses containing a message. Sender identity and payload structure are not validated at runtime.
 
-`WorkerClient` defaults to `https://rin-worker.pujankhunt.me/solve` and uses `AbortSignal.timeout(5000)`. It sends JSON with `Content-Type` and `X-Rin-Client`; the browser manages the Origin header. A constructor key overrides the build-injected key, and missing keys throw. Non-success JSON responses become errors with HTTP status and the worker's message. Success JSON is cast to `SolveResult` without runtime validation. The five-second abort limits the extension request; the worker's upstream fetch has no explicit timeout or cancellation wiring.
+`WorkerClient` defaults to `https://rin-worker.pujankhunt.me/solve` and uses `AbortSignal.timeout(12000)`. It sends JSON with `Content-Type` and `X-Rin-Client`; the browser manages the Origin header. A constructor key overrides the build-injected key, and missing keys throw. Non-success JSON responses become errors with HTTP status and the worker's message. Success JSON is cast to `SolveResult` without runtime validation. The twelve-second abort limits the extension request; the worker independently aborts its OpenRouter request after ten seconds. Extension disconnection does not explicitly cancel upstream work.
 
 ## 8. Worker request handling
 
@@ -158,7 +158,7 @@ The intended endpoint is `POST /solve`; the handler branches on method and **doe
 3. `POST` requires a valid serialized Origin: `chrome-extension://` with a 32-character `a`–`p` ID, `moz-extension://` with a UUID hostname, or HTTP with hostname exactly `localhost` or `127.0.0.1` and an optional port. Missing or rejected origins return 403.
 4. Missing/blank `RIN_CLIENT_KEY` or `OPENROUTER_API_KEY` configuration returns 500. A missing/mismatched `X-Rin-Client` header returns 401.
 5. Parsed input must have a nonblank string question and a nonempty options array. Other schema details are not checked. Failed validation returns 400.
-6. Solving succeeds with 200 and `SolveResult`. JSON decoding, upstream, and answer parsing exceptions return 500 and `{ error: message }`.
+6. Solving succeeds with 200 and `SolveResult`. OpenRouter timeouts return 504 and `{ error: message }`. Other JSON decoding, upstream, and answer parsing exceptions return 500 with the same error shape.
 
 CORS reflects an accepted Origin, otherwise uses `null`, allows `POST, OPTIONS` and `Content-Type, X-Rin-Client`, and sets `Vary: Origin`. Origin validation parses the URL, rejects credentials and resource URL components, and validates hostnames. Extension ID format is checked without a specific extension allowlist. The shared client key is embedded in the extension and there is no application-level rate limit.
 
@@ -168,7 +168,7 @@ CORS reflects an accepted Origin, otherwise uses `null`, allows `POST, OPTIONS` 
 
 `solve()` trims the requested model and falls back to `deepseek/deepseek-v4-flash`. It builds a system prompt asking for step-by-step reasoning and a JSON object containing `reasoning` and `choice`. The user prompt contains question text and choices formatted as `label: text`. Request parameters are `response_format: { type: 'json_object' }`, `temperature: 0`, and `max_tokens: 1024`.
 
-`OpenRouterClient.complete()` posts with bearer authentication and reads the first choice's message content, falling back to an empty string. Non-success upstream responses throw with the HTTP status.
+`OpenRouterClient.complete()` posts with bearer authentication and reads the first choice's message content, falling back to an empty string. Its abort controller limits both the fetch and response-body read to `OPENROUTER_TIMEOUT_MS` (10000 milliseconds by default, overridable through the constructor). Timeout failures become `OpenRouterTimeoutError` and HTTP 504. Non-success upstream responses throw with the HTTP status. The timer is cleared after success or failure.
 
 `parseQuizChoice()` strips optional Markdown fences, parses JSON, requires a nonblank string `choice`, and matches labels case-insensitively. Malformed or unknown choices throw; there is no guessed fallback. Reasoning is not returned to the extension.
 
