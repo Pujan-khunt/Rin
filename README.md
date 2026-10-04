@@ -16,9 +16,13 @@ rin/
 │   ├── extension/          # Manifest V3 browser extension built with WXT & Vite
 │   │   ├── src/
 │   │   │   ├── actors/     # Polymorphic execution strategies (HudActor, ClickActor)
-│   │   │   ├── detection/  # DOM extraction, ephemeral lifecycle, and quiz observation
+│   │   │   ├── config/     # Transactional ConfigStore and settings defaults
+│   │   │   ├── diagnostics/# DOM recorder and dev snapshot hotkeys
+│   │   │   ├── dom/        # DOM selectors and text extraction helpers
 │   │   │   ├── entrypoints/# WXT entrypoints (drona.content.ts, background.ts, popup/)
-│   │   │   ├── services/   # SOLID domain coordinators (Meeting, QuizWorkflow, Config)
+│   │   │   ├── meeting/    # Symmetrical meeting lifecycle watcher
+│   │   │   ├── messaging/  # Type-safe MessageRouter, messenger, and stealth logger
+│   │   │   ├── quiz/       # Pure functional quiz extractor, observer, and workflow
 │   │   │   └── solver/     # WorkerClient communicating with edge proxy
 │   │   └── public/icon/    # Extension icons (16, 32, 48, 128 px)
 │   │
@@ -97,15 +101,23 @@ RIN_CLIENT_KEY="your-secret" pnpm build
 # Run in development mode with live hot-reloading
 RIN_CLIENT_KEY="your-secret" pnpm --filter @rin/extension dev
 
-# Build Firefox production bundle (.output/firefox-mv2)
-RIN_CLIENT_KEY="your-secret" pnpm build:firefox
+# Run in Firefox development mode
+RIN_CLIENT_KEY="your-secret" pnpm --filter @rin/extension dev:firefox
 
-# Package Chrome Web Store zip (.output/rin-0.1.0-chrome.zip)
-RIN_CLIENT_KEY="your-secret" pnpm zip
+# Build Firefox production bundle (.output/firefox-mv3)
+RIN_CLIENT_KEY="your-secret" pnpm --filter @rin/extension build:firefox
 
-# Package Firefox AMO zip and source archive
-RIN_CLIENT_KEY="your-secret" pnpm zip:firefox
-RIN_CLIENT_KEY="your-secret" pnpm zip:all
+# Package Chrome Web Store distribution zip (.output/rinextension-0.1.0-chrome.zip)
+RIN_CLIENT_KEY="your-secret" pnpm --filter @rin/extension zip
+
+# Package Firefox AMO distribution zip (.output/rinextension-0.1.0-firefox.zip)
+RIN_CLIENT_KEY="your-secret" pnpm --filter @rin/extension zip:firefox
+
+# Package both browser distribution zips
+RIN_CLIENT_KEY="your-secret" pnpm --filter @rin/extension zip:all
+
+# Generate clean source code archive for Mozilla Add-on Reviewers
+git archive --format=zip --output=rin-sources.zip HEAD
 ```
 
 ### Cloudflare Worker
@@ -148,10 +160,10 @@ pnpm typecheck
 
 ### Firefox
 
-1. Run `RIN_CLIENT_KEY="your-secret" pnpm build:firefox`.
+1. Run `RIN_CLIENT_KEY="your-secret" pnpm --filter @rin/extension build:firefox`.
 2. Navigate to `about:debugging#/runtime/this-firefox`.
 3. Click **Load Temporary Add-on...**.
-4. Select `packages/extension/.output/firefox-mv2/manifest.json`.
+4. Select `packages/extension/.output/firefox-mv3/manifest.json`.
 
 ---
 

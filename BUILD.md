@@ -30,13 +30,13 @@ pnpm install --frozen-lockfile
 ```
 
 ### Step 2: Build the Firefox WebExtension
-From the repository root directory, run:
+From the repository root directory, provide a build-time client key and run:
 ```bash
-pnpm run build:firefox
+RIN_CLIENT_KEY="test-build-key" pnpm --filter @rin/extension build:firefox
 ```
 Or to build and generate the distribution `.zip`:
 ```bash
-pnpm run zip:firefox
+RIN_CLIENT_KEY="test-build-key" pnpm --filter @rin/extension zip:firefox
 ```
 
 ---
