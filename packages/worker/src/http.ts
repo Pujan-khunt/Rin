@@ -7,10 +7,8 @@ export interface Env {
 }
 
 /**
- * Validates whether an incoming HTTP Origin belongs to a browser extension or local development.
- *
- * Strictly requires the Origin header to be present and to match an allowed scheme.
- * Returns false if the Origin header is missing or disallowed.
+ * Checks a present Origin against extension and local-development prefixes.
+ * Does not parse hostnames or restrict requests to a particular extension ID.
  */
 export function isAllowedOrigin(origin: string | null): boolean {
   if (!origin) return false;
@@ -24,7 +22,7 @@ export function isAllowedOrigin(origin: string | null): boolean {
 }
 
 /**
- * Dynamically computes CORS headers based on the validated Origin.
+ * Computes CORS headers using the Origin prefix check.
  */
 export function getCorsHeaders(origin: string | null): Record<string, string> {
   const allowed = isAllowedOrigin(origin);
@@ -95,7 +93,8 @@ export function authenticateRequest(request: Request, env: Env): Response | null
 }
 
 /**
- * Validates whether an incoming parsed JSON payload satisfies the QuizInput schema.
+ * Checks for a nonblank string question and a nonempty options array.
+ * Individual options and the optional model are not validated here.
  */
 export function validateQuizInput(input: unknown): input is QuizInput {
   if (!input || typeof input !== 'object') return false;

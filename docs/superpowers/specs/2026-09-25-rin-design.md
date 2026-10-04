@@ -1,361 +1,183 @@
-# Rin — Classroom Assistant for Scaler (Drona)
-## System Architecture & Technical Design Specification
+# Rin — System implementation reference
 
-* **Date**: 2026-09-25
-* **Author**: Pujan
-* **Status**: Draft / Ready for Implementation Review
+- **Original design date:** 2026-09-25
+- **Reconciled with source:** 2026-10-04
+- **Status:** Current implementation reference
 
----
+This document describes the code in this checkout. It replaces the original proposal's unimplemented benchmark tooling, fixture collection, confidence field, and performance targets with the current contracts and behavior. The [README](../../../README.md) covers setup; [BUILD.md](../../../BUILD.md) covers artifacts; the [extension reference](2026-10-02-extension-architecture-refactor-design.md) describes individual extension modules.
 
-## 1. Executive Summary & Product Identity
+## 1. Product behavior
 
-**Rin** is an intelligent, low-latency browser assistant designed for students attending live online classes on Scaler's proprietary meeting platform (**Drona**). During live sessions, instructors conduct periodic, fast-paced quizzes (often 30 seconds or less) to gauge comprehension.
+Rin assists with multiple-choice quizzes on Scaler's Drona classroom UI. It extracts rendered text, obtains a model recommendation, and either highlights the option or dispatches a synthetic click sequence. Defaults are `enabled: true`, `actorMode: 'assisted'`, and `model: 'deepseek/deepseek-v4-flash'`.
 
-Rin operates **primarily as an assistant**:
-1. **Assisted Mode (Default)**: Detects pop-up quizzes in real-time, infers the most accurate answer via an edge AI proxy, and non-intrusively highlights the recommended option with a soft background tint (`#e8d5f5`) directly on the screen. The student retains full agency to verify and click.
-2. **Autonomous Mode (Optional / Configurable)**: For users desiring hands-free participation, Rin can be toggled to automatically dispatch user-like click events to submit the recommended option instantly.
+Assisted mode sets a purple background and outline on an existing choice element. Auto mode dispatches events to that element; there is no separate submission request or acceptance check. Rin does not display model reasoning, report confidence, inspect quiz timers, or measure answer accuracy.
 
-### Core Tenets
-- **Assistant-First**: Designed as an educational aid and cognitive accelerator, not an intrusive bot.
-- **Strict Meeting Scoping**: Zero overhead when browsing courses or dashboard; activates only within an active Drona classroom session.
-- **Low-Latency Edge Proxy**: Calls to the AI inference provider are mediated by a zero-cost, edge-deployed Cloudflare Worker to protect API credentials and maintain sub-100ms decision roundtrips.
-- **Liskov & SOLID Architecture**: Modular codebase where DOM selectors, observation engines, AI clients, and UI actors communicate strictly through abstractions.
+## 2. Packages and execution boundaries
 
----
-
-## 2. Repository Architecture: pnpm Monorepo
-
-The project is structured as a pnpm workspace housed in a single git repository. This structure enables strict compile-time type sharing between the browser extension and the edge worker without code duplication or npm publishing overhead.
-
-```
-rin/
-├── packages/
-│   ├── extension/               # Browser extension (WXT + Vite)
-│   │   ├── src/
-│   │   │   ├── config/          # Centralized selectors & local storage
-│   │   │   │   ├── selectors.ts # 🎯 SINGLE SOURCE OF TRUTH for all DOM keys
-│   │   │   │   └── config.ts    # User settings storage
-│   │   │   ├── interfaces/      # Extension-specific runtime interfaces
-│   │   │   ├── detection/       # Drona lifecycle & targeted DOM observer
-│   │   │   │   ├── lifecycle.ts # Drona meeting session gatekeeper
-│   │   │   │   ├── observer.ts  # Targeted MutationObserver (parent container only)
-│   │   │   │   ├── extractor.ts # DOM -> QuizData normalizer
-│   │   │   │   └── recorder.ts  # [DEV-ONLY] DOM snapshot & freeze capture tool
-│   │   │   ├── actors/          # Execution handlers
-│   │   │   │   ├── hud-actor.ts # Default: Soft background highlight (#e8d5f5)
-│   │   │   │   └── click-actor.ts# Optional: Synthetic pointer click dispatcher
-│   │   │   ├── solver/          # Worker communication client
-│   │   │   │   └── worker-client.ts
-│   │   │   ├── messaging/       # Type-safe background <-> content bridges
-│   │   │   └── entrypoints/     # WXT Composition Roots
-│   │   │       ├── background.ts# Service worker (HTTP relay)
-│   │   │       ├── drona.content.ts # Injected classroom script
-│   │   │       └── popup/       # Minimal popup UI (Assistant vs Auto toggle)
-│   │   ├── wxt.config.ts        # WXT cross-browser bundler config
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   │
-│   ├── worker/                  # Cloudflare Worker edge proxy
-│   │   ├── src/
-│   │   │   ├── index.ts         # Edge handler & AI inference caller
-│   │   │   └── providers/       # Benchmark winner AI implementation
-│   │   ├── wrangler.jsonc       # Cloudflare Workers configuration
-│   │   ├── package.json
-│   │   └── tsconfig.json
-│   │
-│   └── shared/                  # Shared TypeScript contracts & models
-│       ├── src/
-│       │   ├── quiz.ts          # QuizInput, QuizOption
-│       │   ├── solver.ts        # SolveResult
-│       │   └── index.ts
-│       ├── package.json         # Package name: "@rin/shared"
-│       └── tsconfig.json
-│
-├── tools/                       # Dev-only benchmarking & calibration
-│   └── benchmark.ts             # Offline CLI evaluator for Jev vs Gemini vs DeepSeek
-│
-├── test-fixtures/               # 17+ real Scaler quiz HTML snapshots
-│   ├── cpp-for-hft/
-│   └── financial-markets-and-instruments/
-│
-├── pnpm-workspace.yaml
-├── package.json                 # Monorepo root devDependencies
-└── tsconfig.base.json
-```
-
----
-
-## 3. Strict Drona Meeting Lifecycle & Targeted Observation
-
-### 3.1 Complementary Observer State Machine
-Scaler.com is a React Single-Page Application (SPA). Navigations between the dashboard, course directory, and live classrooms happen via client-side routing (`history.pushState`) without full page reloads.
-
-To be route-agnostic while eliminating DOM observation overhead, Rin implements a **Mutually Exclusive, Complementary State Machine**: exactly **one** MutationObserver is active at any time.
-
-```
-                  ┌───────────────────────────────┐
-                  │ State A: MEETING_SEARCH       │
-                  │ - Attached to: #root          │
-                  │ - Watching for: .vp-container │
-                  │ - Quiz Observer: INACTIVE     │
-                  └──────────────┬────────────────┘
-                                 │
-                                 │ React mounts .vp-container
-                                 ▼ (Handover: Disconnect Meeting Observer)
-                  ┌───────────────────────────────┐
-                  │ State B: QUIZ_MONITOR         │
-                  │ - Attached to: .vp-container  │
-                  │ - Watching for: div.m-quiz    │
-                  │ - Meeting Observer: INACTIVE  │
-                  └──────────────┬────────────────┘
-                                 │
-                                 │ .vp-container unmounts (leave class)
-                                 ▼ (Teardown: Disconnect Quiz Observer)
-                  Return to State A: MEETING_SEARCH
-```
-
-### 3.2 Drona Session Gatekeeper (`lifecycle.ts`)
-1. **Route-Agnostic Operation**: No fragile URL path filters or regexes. Because `#root` is the permanent React root element across the entire Scaler SPA, watching `#root` for `.vp-container` reliably catches live classes, masterclasses, and recorded archives regardless of how the user navigated there.
-2. **Fast-Path Check**: When the content script loads, it immediately queries `#root` for `.vp-container`. If already present (e.g. hard reload during an ongoing class), it jumps directly to State B (`QUIZ_MONITOR`).
-3. **Reactive Stage 1 Watcher**: If `.vp-container` is not present, an observer attaches directly to `document.getElementById('root')` with `{ childList: true, subtree: true }`. The exact microtask React renders `.vp-container`, this observer **immediately disconnects itself** and transitions to State B.
-4. **Targeted Stage 2 Watcher**: Stage 2 attaches strictly to `.vp-container` with `{ childList: true, subtree: false }`. It observes only direct children of the video player, listening specifically for `div.m-quiz` with zero noise from React chat, participant lists, or controls.
-5. **Teardown & Re-Arm**: If the student leaves the class and `.vp-container` is removed from the DOM, the Stage 2 quiz observer cleans up and re-arms State 1 to await the next class.
-
----
-
-## 4. Centralized Selectors: Single Source of Truth
-
-To ensure Rin is immune to breaking updates and that future DOM schema tweaks require modifying only one file, all selectors are isolated in `packages/extension/src/config/selectors.ts`:
-
-```typescript
-// packages/extension/src/config/selectors.ts
-
-export const SELECTORS = {
-  app: {
-    /** The permanent React application root container for the Scaler SPA */
-    root: '#root',
-  },
-  meeting: {
-    /** The parent video player container hosting the meeting and overlays */
-    container: '.vp-container',
-  },
-  quiz: {
-    /** Root container of the quiz overlay */
-    root: 'div.m-quiz',
-    /** Header / Title element */
-    title: 'h1.dark.bold',
-    /** Problem statement container (Markdown renderer) */
-    questionMarkdown: '.m-problem-description__markdown',
-    /** List wrapping all option cards */
-    choicesList: '.m-problem-choices__list',
-    /** Clickable individual choice anchors */
-    choiceItem: '.m-problem-choices__list > a.choice',
-    /** Choice label indicator (e.g. "A", "B", "C", "D") */
-    choiceLabel: '.choice__name',
-    /** Choice text content container */
-    choiceText: '.choice__text',
-  },
-} as const;
-
-export type Selectors = typeof SELECTORS;
-```
-
----
-
-## 5. Normalized Data Contracts (`@rin/shared`)
-
-### 5.1 Shared Data Models
-Data exchanged between Content Script, Background Worker, and the Edge Proxy:
-
-```typescript
-// packages/shared/src/quiz.ts
-
-export interface QuizOption {
-  label: string; // e.g. "A", "B", "C", "D"
-  text: string;  // Plaintext of the choice
-  index: number; // 0-indexed position
-}
-
-export interface QuizInput {
-  question: string;
-  options: Array<{ label: string; text: string }>;
-}
-```
-
-```typescript
-// packages/shared/src/solver.ts
-
-export interface SolveResult {
-  chosenIndex: number;          // 0-indexed selected option
-  chosenLabel: string;          // "A", "B", "C", or "D"
-  confidence: number | null;    // Probability (0.0 - 1.0) if reported by model
-  source: string;               // e.g. "jev", "gemini-flash"
-  latencyMs: number;            // End-to-end inference latency
-}
-```
-
-### 5.2 Internal Extension Model (`packages/extension`)
-```typescript
-// packages/extension/src/interfaces/quiz.ts
-import type { QuizOption } from '@rin/shared';
-
-export interface QuizData {
-  question: string;
-  options: QuizOption[];
-  optionElements: HTMLElement[];
-  containerElement: HTMLElement;
-  rawHtml: string;
-  detectedAt: number;
-}
-```
-*(Note: `timeLeftSeconds` has been omitted to keep the extraction pipeline strictly lean and decoupled from timer UI representations).*
-
----
-
-## 6. Actor Pipeline & UI Presentation
-
-The execution layer follows the Strategy Pattern via the `Actor` interface.
-
-```typescript
-// packages/extension/src/interfaces/actor.ts
-import type { QuizData } from './quiz';
-import type { SolveResult } from '@rin/shared';
-
-export type ActorMode = 'assisted' | 'auto';
-
-export interface ActPayload {
-  quiz: QuizData;
-  result: SolveResult;
-}
-
-export interface Actor {
-  readonly mode: ActorMode;
-  act(payload: ActPayload): Promise<void>;
-  cleanup(): void;
-}
-```
-
-### 6.1 Default: `HudActor` (Assisted Mode)
-- **Goal**: Present the recommendation without hijacking control.
-- **Action**: 
-  1. Locates the DOM anchor element matching `result.chosenIndex`.
-  2. Applies a soft light-purple background:
-     ```css
-     background-color: #e8d5f5 !important;
-     transition: background-color 0.2s ease-in-out;
-     ```
-  3. Records the previous inline style and restores it during `cleanup()` (triggered when the quiz modal unmounts or session ends).
-
-### 6.2 Optional: `ClickActor` (Autonomous Mode)
-- **Goal**: Autonomous one-click submission.
-- **Action**: Dispatches a realistic synthetic pointer and mouse sequence to satisfy React event listener bindings:
-  ```typescript
-  const target = payload.quiz.optionElements[payload.result.chosenIndex];
-  const opts = { bubbles: true, cancelable: true, view: window, button: 0 };
-  target.dispatchEvent(new PointerEvent('pointerdown', opts));
-  target.dispatchEvent(new MouseEvent('mousedown', opts));
-  target.dispatchEvent(new PointerEvent('pointerup', opts));
-  target.dispatchEvent(new MouseEvent('mouseup', opts));
-  target.dispatchEvent(new MouseEvent('click', opts));
-  ```
-
----
-
-## 7. Edge AI Proxy: Cloudflare Worker (`packages/worker`)
-
-### 7.1 Architecture & Security
-- **No Embedded Client Secrets**: The browser extension bundle contains zero AI API tokens.
-- **Free-Tier Limits**: Runs on Cloudflare Workers (100,000 requests/day, 10ms CPU allowance).
-- **Execution Cost**: Routing and forwarding consumes $\approx 0.5\text{ms}$ CPU time; network waiting for AI inference does not count toward CPU quota.
-- **Secrets Management**: Credentials (`OPENROUTER_API_KEY`) are stored via encrypted Cloudflare Secrets (`wrangler secret put OPENROUTER_API_KEY`).
-
-### 7.2 Endpoint Definition
-- `POST /solve`
-  - Accepts `QuizInput` payload.
-  - Dispatches the request to the pre-calibrated production inference provider.
-  - Returns `SolveResult` with CORS headers allowing extension origins.
-
----
-
-## 8. Development & Calibration Tools
-
-### 8.1 Offline Benchmark & Calibration Tool (`tools/benchmark.ts`)
-
-A standalone Node.js CLI tool (`tools/benchmark.ts`) executes outside the extension bundle to benchmark candidate models against the 17 verified test fixtures in `test-fixtures/`:
-
-#### Candidate Models Evaluated
-1. **TypeSafe AI Jev (`jev-latest`)**: Low-latency System 1 classification using typed `choice` criteria.
-2. **Google Gemini 2.5 Flash**: Zero-shot high-speed multimodal LLM.
-3. **DeepSeek / OpenAI GPT-4o-mini**: Fast reasoning/comprehension alternatives.
-
-#### Evaluation Criteria
-- **Accuracy**: Percentage of correct answers on Scaler quizzes.
-- **Decision Latency**: Target $< 500\text{ms}$ overall.
-- **Stability**: Zero unhandled exceptions or malformed output formats.
-
-The winning model from the benchmark is deployed as the single production engine in `packages/worker/src/index.ts`.
-
-### 8.2 In-Browser DOM Snapshot Recorder (`recorder.ts`)
-
-During development, verifying whether live Drona meeting quizzes have any subtle DOM differences from recorded class replays is critical. Rin includes a dedicated development recorder (`packages/extension/src/detection/recorder.ts`):
-
-- **Activation**: Conditionally bundled and initialized only during development (`if (import.meta.env.DEV)`). In production builds (`pnpm build`), Vite evaluates the flag to `false` and dead-code-eliminates the recorder entirely.
-- **Trigger**: Automatically on quiz detection or manually via a developer hotkey (`Ctrl+Shift+S`).
-- **Functionality**:
-  1. Grabs the full `outerHTML` of `.m-quiz` and its parent `.vp-container`.
-  2. Saves the snapshot with timestamp and current URL into `browser.storage.local`.
-  3. Outputs the clean HTML string directly to the DevTools console and triggers a single-click download of `quiz-snapshot-<timestamp>.html`.
-- **Purpose**: Enables immediate, stress-free capture of real live class quizzes in the 30-second window for post-class selector verification and fixture generation.
-
----
-
-## 9. Manifest V3 Configuration
-
-The extension manifest is auto-synthesized by WXT with explicit assistant framing:
-
-```typescript
-// packages/extension/wxt.config.ts
-import { defineConfig } from 'wxt';
-
-export default defineConfig({
-  srcDir: 'src',
-  browser: 'chrome',
-  manifestVersion: 3,
-  manifest: {
-    name: 'Rin — Classroom Assistant for Scaler',
-    description: 'Smart in-class learning assistant that highlights quiz solutions during Scaler Drona sessions.',
-    version: '0.1.0',
-    permissions: ['storage'],
-    host_permissions: ['https://*.scaler.com/*'],
-    action: {
-      default_title: 'Rin Settings',
-    },
-  },
-});
-```
-
----
-
-## 10. SOLID Principles Compliance Matrix
-
-| Principle | Rin Implementation Architecture |
+| Package | Source and responsibility |
 |---|---|
-| **Single Responsibility (SRP)** | `lifecycle.ts` gates sessions; `observer.ts` detects DOM nodes; `extractor.ts` extracts text; `selectors.ts` stores DOM keys; `hud-actor.ts` applies styles. |
-| **Open/Closed (OCP)** | New actors (e.g. audio chime actor) or new edge AI models are added by implementing interfaces without touching existing core logic. |
-| **Liskov Substitution (LSP)** | `HudActor` and `ClickActor` strictly conform to the `Actor` contract and are hot-swappable at runtime based on user preference. |
-| **Interface Segregation (ISP)** | Shared models (`@rin/shared`) isolate serializable data (`QuizInput`, `SolveResult`) from extension DOM nodes (`QuizData`). |
-| **Dependency Inversion (DIP)** | Content scripts and background workers depend on abstract `Solver` and `Actor` interfaces; concrete instances are injected at the composition root (`entrypoints/`). |
+| `@rin/extension` | `packages/extension/src`: WXT content script, background, popup, and domain modules. |
+| `@rin/worker` | `packages/worker/src`: Cloudflare HTTP handler, OpenRouter client, prompt, and parser. |
+| `@rin/shared` | `packages/shared/src`: TypeScript contracts and `X-Rin-Client` header constant. |
 
----
+DOM references stay in the content script. The background performs the worker HTTP request. The worker holds the upstream API key and calls `https://openrouter.ai/api/v1/chat/completions`. There is no database, account service, provider registry, offline solver, or benchmark CLI in this checkout.
 
-## 11. Verification & Testing Strategy
+```mermaid
+sequenceDiagram
+    participant Page as Scaler DOM
+    participant Content as Content script
+    participant Background as Extension background
+    participant Worker as Cloudflare Worker
+    participant AI as OpenRouter
+    Page->>Content: Classroom and quiz mutations
+    Content->>Background: SOLVE_QUIZ (question, options, model)
+    Background->>Worker: POST /solve, X-Rin-Client
+    Worker->>AI: Chat Completions prompt
+    AI-->>Worker: JSON containing choice
+    Worker-->>Background: SolveResult
+    Background-->>Content: QUIZ_SOLVED
+    Content->>Page: Highlight or dispatch events
+```
 
-1. **Selector Integrity Testing**: Automated Vitest suite checking `extractor.ts` against all 17 HTML files in `test-fixtures/`.
-2. **Benchmark Verification**: Run `pnpm run benchmark` to record accuracy and response timings across candidate models.
-3. **Recorded Replay End-to-End Test**:
-   - Load unpacked extension in Chrome/Firefox.
-   - Open recorded Scaler class video player.
-   - Navigate to quiz timestamp and click "Launch Quiz".
-   - Confirm targeted observer triggers within 5ms of `.m-quiz` insertion.
-   - Verify `#e8d5f5` styling is accurately applied to the winning option.
-   - Verify unmounting cleanly restores element styling.
+## 3. Classroom and quiz lifecycle
+
+The content script matches `*://*.scaler.com/*` and `*://scaler.com/*`, runs at `document_idle`, and sets `allFrames: true`. It loads local settings and installs storage subscriptions even outside classrooms or while disabled.
+
+`MeetingWatcher.start()` queries for `.m-activity` in production. Development uses `.m-activity, .vp-container`, adding recorded-player support. An existing container is handled immediately. Otherwise a `MutationObserver` observes `#root`, or `body`, with `childList: true, subtree: true` and searches added elements and descendants.
+
+On entry, the mount observer disconnects, the quiz observer starts, and a removal observer watches the classroom's immediate parent. This removal observer uses `childList: true` and enables `subtree` only when the observed parent is `body`. A session therefore normally has two observers: quiz mutations and classroom removal. Observed removal calls `onLeave`, stops quiz observation, cleans up the actor, and re-arms meeting search. `stop()` disconnects the meeting observers without calling `onLeave`.
+
+`QuizObserver.start()` extracts an existing quiz immediately and then continues observing the classroom with `childList: true, subtree: true, characterData: true`. Attribute-only changes are not observed. Each mutation callback attempts extraction and emits only when the quiz element or question differs from the previous emission. `stop()` clears this identity and disconnects the observer. A callback that finds a detached classroom also stops observation.
+
+Removing an ancestor above the observed parent can bypass meeting removal detection. Quiz removal alone does not invoke actor cleanup; cleanup occurs on the next HUD action, actor replacement, disabling, meeting leave, or extension context invalidation.
+
+## 4. Extraction and selectors
+
+All CSS selectors live in `packages/extension/src/dom/selectors.ts`:
+
+| Purpose | Selector |
+|---|---|
+| Application root | `#root` |
+| Live classroom | `.m-activity` |
+| Development recorded player | `.vp-container` |
+| Quiz root | `div.m-quiz` |
+| Quiz title (declared, unused by extraction) | `h1.dark.bold` |
+| Question | `.m-problem-description__markdown` |
+| Choices list | `.m-problem-choices__list` |
+| Choice elements | `.m-problem-choices__list > a.choice` |
+| Label / text | `.choice__name` / `.choice__text` |
+| Selected choice | `.choice--selected` |
+
+`parseQuestion()` joins the question container's direct child blocks with newlines. `<pre>` blocks and blocks containing `<pre>` retain internal whitespace after outer trimming. Other blocks, including standalone `<code>`, have whitespace normalized. Direct question text is used when there are no child elements. Images are not processed.
+
+`parseOption()` normalizes choice text and uses the rendered label, falling back to A, B, C, etc. by array position. Extraction succeeds with a nonempty question, a nonempty choices list, and **any** option containing text. Other options may still be empty. It records selected-choice presence, `performance.now()`, quiz `outerHTML`, and option element references.
+
+## 5. Data contracts
+
+The serializable contracts are defined in `packages/shared/src/quiz.ts` and `solver.ts`:
+
+```ts
+interface QuizChoice {
+  label: string;
+  text: string;
+}
+
+interface QuizOption extends QuizChoice {
+  index: number;
+}
+
+interface QuizInput {
+  question: string;
+  options: QuizChoice[];
+  model?: string;
+}
+
+interface SolveResult {
+  chosenIndex: number;
+  chosenLabel: string;
+  source: string;
+  latencyMs: number;
+}
+
+interface WorkerErrorResponse {
+  error: string;
+}
+```
+
+The workflow includes `index` on outgoing options even though `QuizInput` only requires label/text. The worker maps its answer by array position and does not use those indexes. `QuizOption` remains an exported positional type; the extension uses its own `DetectedOption` with an `element: HTMLElement` field.
+
+```ts
+interface DetectedOption {
+  label: string;
+  text: string;
+  index: number;
+  element: HTMLElement;
+}
+
+interface QuizData {
+  question: string;
+  options: DetectedOption[];
+  containerElement: HTMLElement;
+  alreadyAnswered: boolean;
+  detectedAt: number;
+  rawHtml: string;
+  optionElements?: HTMLElement[];
+}
+```
+
+`extractQuiz()` still populates the optional compatibility array `optionElements`; actors use `options[chosenIndex].element`. DOM elements, raw HTML, detection time, and page URL are not sent in solver requests.
+
+## 6. Workflow, settings, and actors
+
+`QuizWorkflow.process()` returns early when disabled or when `alreadyAnswered` was true during extraction. It awaits the injected solver sender, accepts only `QUIZ_SOLVED`, and checks enablement and quiz connectivity before invoking the current actor. It then calls the optional `onQuizProcessed` hook. Errors are caught and sent to the logger; production has no user-visible solver error UI.
+
+There is no request cancellation on meeting leave, retry, in-flight request serialization, or recheck of selected-choice state, quiz text, or countdown after inference. Changing actor mode during inference changes the actor used for the result. Duplicate suppression does not include option content, so partial hydration or failed requests can leave the same quiz without a new solve.
+
+`HudActor` first restores any previous highlight, saves the target's inline CSS, applies `!important` purple backgrounds and a `0 0 0 2px #a855f7` shadow, and makes descendant backgrounds transparent. Cleanup restores the saved inline CSS for the target and descendants. `ClickActor` dispatches `pointerdown`, `mousedown`, `pointerup`, `mouseup`, and `click`; its cleanup is a no-op. Both actors return without throwing when the target index is absent.
+
+`ConfigStore` merges `rinConfig` from `browser.storage.local` over defaults, falls back to defaults on read failure, and publishes local storage changes. `save()` awaits storage before replacing its cache and rethrows write errors. `load()` and `get()` expose mutable cached objects, so caller mutations can precede persistence. The popup mutates its loaded object, updates mode/model UI before saving, and has no rollback for write failures. Production hides model controls but still uses a stored model through the workflow.
+
+## 7. Extension messaging and HTTP client
+
+| Message | Background behavior | Success response |
+|---|---|---|
+| `SOLVE_QUIZ` | Loads settings and calls `WorkerClient`; development prefers a stored model override. | `QUIZ_SOLVED` with `SolveResult` |
+| `GET_CONFIG` | Loads settings. | `CONFIG` with `RinConfig` |
+| `LOG` | Calls `prettyPrintLog`. | `ACK` |
+
+`MessageRouter.register()` infers each payload type from the message name. `listen()` attaches the runtime listener itself, returns false for unknown/missing types, and keeps recognized message channels open with `true`. Synchronous exceptions and rejected handlers become `ERROR` responses containing a message. Sender identity and payload structure are not validated at runtime.
+
+`WorkerClient` defaults to `https://rin-worker.pujankhunt.me/solve` and uses `AbortSignal.timeout(5000)`. It sends JSON with `Content-Type` and `X-Rin-Client`; the browser manages the Origin header. A constructor key overrides the build-injected key, and missing keys throw. Non-success JSON responses become errors with HTTP status and the worker's message. Success JSON is cast to `SolveResult` without runtime validation. The five-second abort limits the extension request; the worker's upstream fetch has no explicit timeout or cancellation wiring.
+
+## 8. Worker request handling
+
+The intended endpoint is `POST /solve`; the handler branches on method and **does not check the URL path**.
+
+1. `OPTIONS` checks Origin and returns 204 or 403 without authenticating the client key.
+2. Other methods except `POST` return 405.
+3. `POST` requires Origin to start with `chrome-extension://`, `moz-extension://`, `http://localhost`, or `http://127.0.0.1`; missing or rejected origins return 403.
+4. Missing/blank `RIN_CLIENT_KEY` or `OPENROUTER_API_KEY` configuration returns 500. A missing/mismatched `X-Rin-Client` header returns 401.
+5. Parsed input must have a nonblank string question and a nonempty options array. Other schema details are not checked. Failed validation returns 400.
+6. Solving succeeds with 200 and `SolveResult`. JSON decoding, upstream, and answer parsing exceptions return 500 and `{ error: message }`.
+
+CORS reflects an accepted Origin, otherwise uses `null`, allows `POST, OPTIONS` and `Content-Type, X-Rin-Client`, and sets `Vary: Origin`. Origin checks are string prefixes, not a specific extension allowlist or hostname parser. The shared client key is embedded in the extension and there is no application-level rate limit.
+
+`OPENROUTER_API_KEY` stays on the worker. `wrangler.jsonc` names the worker `rin-solver`, uses compatibility date `2026-09-20`, configures the custom domain, and enables persisted invocation logs and traces at sampling rate 1.
+
+## 9. Prompt, parsing, and timing
+
+`solve()` trims the requested model and falls back to `deepseek/deepseek-v4-flash`. It builds a system prompt asking for step-by-step reasoning and a JSON object containing `reasoning` and `choice`. The user prompt contains question text and choices formatted as `label: text`. Request parameters are `response_format: { type: 'json_object' }`, `temperature: 0`, and `max_tokens: 1024`.
+
+`OpenRouterClient.complete()` posts with bearer authentication and reads the first choice's message content, falling back to an empty string. Non-success upstream responses throw with the HTTP status.
+
+`parseQuizChoice()` strips optional Markdown fences, parses JSON, requires a nonblank string `choice`, and matches labels case-insensitively. Malformed or unknown choices throw; there is no guessed fallback. Reasoning is not returned to the extension.
+
+`latencyMs` is the rounded worker duration from before prompt construction through upstream inference and answer parsing. It excludes extension-to-worker transport, authentication/body decoding, and browser actions. No measured latency, accuracy, cost, or provider benchmark guarantee is included in this implementation.
+
+## 10. Diagnostics and verification
+
+Development logging is printed in the background context or forwarded there from content/popup contexts. Normal logger calls return without emitting in production; the background's registered `LOG` route still invokes the printer when directly called.
+
+The development workflow hook records quiz metadata, isolated quiz HTML, and the current `#root` HTML (with `body` fallback) **after** an actor resolves. It stores snapshots in `rinSnapshots` without a retention cap, swallowing storage errors. Manual `Alt+Shift+S` or `Ctrl+Alt+S` snapshots also download HTML using a Blob and temporary anchor. These diagnostics are enabled by the development entrypoint, not by the recorder functions themselves.
+
+`pnpm test` runs Vitest across extension and worker tests. Browser APIs and network calls are mocked and DOM behavior uses JSDOM; `pnpm typecheck` checks all three packages. The two root-level HTML captures document a live `.m-activity` with an already-selected choice; tests use inline fixtures rather than loading these captures. There is no automated live-browser submission test or benchmark script. Build commands and artifact checks are documented in [BUILD.md](../../../BUILD.md).

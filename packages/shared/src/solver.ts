@@ -13,9 +13,8 @@ export interface WorkerErrorResponse {
 /**
  * Normalized result payload produced by the solver engine.
  *
- * Returned by the Cloudflare Worker proxy (`POST /solve`) and offline benchmark
- * harness, then consumed by the extension background script and actors
- * (`HudActor`, `ClickActor`) to highlight or select the answer.
+ * Returned by the Cloudflare Worker and consumed by the extension background
+ * and actors to highlight or select the recommended option.
  */
 export interface SolveResult {
   /**
@@ -36,7 +35,8 @@ export interface SolveResult {
   source: string;
 
   /**
-   * End-to-end inference latency measured in milliseconds.
+   * Rounded worker-side duration for prompt construction, upstream inference,
+   * and answer parsing. Excludes extension transport and browser actions.
    */
   latencyMs: number;
 }

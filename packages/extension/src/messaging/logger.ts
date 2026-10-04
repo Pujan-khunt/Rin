@@ -70,7 +70,8 @@ export function prettyPrintLog(payload: LogPayload, forceBrowserStyle?: boolean)
  * - If in content script or popup, proxies via browser.runtime.sendMessage to background worker.
  *
  * In PROD mode:
- * - Dead-code eliminated / no-op (zero performance overhead, zero leakage to host page).
+ * - Returns without printing or forwarding a log. Call-site arguments may still
+ *   be evaluated; prettyPrintLog remains callable by the background LOG route.
  */
 function dispatch(level: LogLevel, tag: string, message: string, data?: unknown): void {
   if (!import.meta.env.DEV) return;

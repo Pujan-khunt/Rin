@@ -1,373 +1,128 @@
-# Rin Extension Architecture & Low-Level Design (LLD) Refactor Spec
+# Rin extension — Architecture implementation reference
 
-- **Date**: 2026-10-02
-- **Author**: Antigravity & Pujan Khunt
-- **Scope**: `packages/extension`
-- **Status**: Approved for Implementation Planning
+- **Original refactor design date:** 2026-10-02
+- **Reconciled with source:** 2026-10-04
+- **Scope:** `packages/extension`
+- **Status:** Current implementation reference, with differences from the proposal recorded below
 
----
+The extension uses domain folders, actor strategies, a message-handler registry, and explicit watcher lifecycle methods. This reference describes the implemented boundaries; it does not claim that every original refactor proposal is complete. See the [system reference](2026-09-25-rin-design.md) for HTTP contracts and known behavior limits, and the [README](../../../README.md) for setup.
 
-## 1. Context & Motivation
+## 1. Source map
 
-While `@rin/worker` and `@rin/shared` maintain high architectural cohesion and crisp domain boundaries, `@rin/extension` has accumulated several Low-Level Design (LLD) smells:
-1. **Split Configuration Abstractions**: Configuration logic is fragmented between procedural functions in `config/config.ts` and a wrapper class in `services/config.service.ts`. Entrypoints use them inconsistently.
-2. **"Teardown Passing Hell" in Detection**: `lifecycle.ts` and `observer.ts` return nested teardown closures (`() => void`) that are imperatively stored, chained, and nullified across files.
-3. **Parallel Arrays in Quiz Extraction**: `extractOptions` returns `{ options: QuizOption[], optionElements: HTMLElement[] }`, forcing callers to manage index-aligned parallel arrays.
-4. **Ad-Hoc Procedural Entrypoints**: `background.ts` relies on a monolithic `if-else` listener callback mixing routing, configuration, and error handling. `popup/main.ts` is an unstructured DOM manipulation script.
-5. **Entangled Dev Concerns**: Dev-only DOM snapshotting, file downloads, and model overrides are inlined across production pipelines using scattered `import.meta.env.DEV` checks.
-6. **Anemic Directory Structure**: An arbitrary `interfaces/` bucket and flat `services/` folder obscure domain boundaries.
+Paths below are relative to `packages/extension/src/`:
 
-This refactor establishes a **Domain-Driven Architecture** for `@rin/extension`, with concise naming, strict single-responsibility components, symmetrical lifecycle patterns, and complete separation between production pipelines and diagnostic tooling.
+| Module | Responsibility |
+|---|---|
+| `actors/types.ts` | `Actor`, `ActPayload`, and `'assisted' \| 'auto'` modes. |
+| `actors/hud.ts` | Save inline styles, highlight a choice, restore on cleanup. |
+| `actors/click.ts` | Five-event synthetic interaction sequence; stateless actor. |
+| `actors/factory.ts` | `ACTOR_STRATEGIES` constructor registry and assisted fallback. |
+| `config/types.ts` | `RinConfig` and old/new configuration listener contract. |
+| `config/defaults.ts` | Enabled assisted mode and default model ID. |
+| `config/store.ts` | Local storage, cached settings, and storage-change subscriptions. |
+| `dom/selectors.ts` | Scaler selectors, including development-only recorded player. |
+| `dom/utils.ts` | Whitespace normalization and self-or-descendant lookup. |
+| `meeting/types.ts` | Classroom enter/leave callbacks. |
+| `meeting/watcher.ts` | Mount/removal observation and meeting re-arming. |
+| `quiz/types.ts` | DOM-bound choices, quiz data, and observer callbacks. |
+| `quiz/extractor.ts` | Question/option text parsing, hydration and selection detection. |
+| `quiz/observer.ts` | Classroom mutation observation and duplicate suppression. |
+| `quiz/workflow.ts` | Enabled/answered guards, solve request, actor execution, hook. |
+| `solver/client.ts` | Authenticated worker request with a five-second timeout. |
+| `messaging/types.ts` | Typed message/response unions and log payloads. |
+| `messaging/messenger.ts` | Promise-based runtime send bridge. |
+| `messaging/router.ts` | Typed route registration and async runtime responses. |
+| `messaging/logger.ts` | Development log dispatch and console formatting. |
+| `diagnostics/recorder.ts` | Snapshot creation, local persistence, and HTML downloads. |
+| `diagnostics/hotkeys.ts` | Manual snapshot shortcuts and listener teardown. |
+| `entrypoints/background.ts` | Solver construction and message route registration. |
+| `entrypoints/drona.content.ts` | Settings, actor/workflow, watchers, diagnostics, teardown. |
+| `entrypoints/popup/main.ts` | Module-level DOM bindings, initialization, settings events. |
+| `entrypoints/popup/index.html` | Enable toggle, mode buttons, development model controls. |
+| `entrypoints/popup/popup.css` | Popup styling. |
+| `env.d.ts` | Vite environment types, including injected client key. |
 
----
+## 2. Composition and ownership
 
-## 2. Target File Tree
+The content entrypoint loads the `configStore` singleton and constructs the initial actor using `createActor()`. It injects that actor, initial settings, `sendToBackground`, and an optional development snapshot hook into `QuizWorkflow`.
 
+A storage subscription first updates workflow settings, then swaps the actor when its mode changes. `setActor()` cleans up the previous actor. Setting `enabled: false` cleans up the current actor; watchers continue running and processing guards skip solving.
+
+`QuizObserver.onQuiz` invokes the workflow. `MeetingWatcher.onEnter` starts quiz observation, and `onLeave` stops it and cleans up the actor. Content-context invalidation unsubscribes settings, stops both watchers, cleans up the actor, and removes the development hotkey listener.
+
+The background constructs `WorkerClient` and registers `LOG`, `GET_CONFIG`, and `SOLVE_QUIZ` routes. `SOLVE_QUIZ` loads settings for every request; in development the stored model takes precedence, while production forwards the workflow payload's model. The popup accesses storage directly rather than using `GET_CONFIG`.
+
+## 3. Lifecycle interfaces
+
+| Component | Start/operation | Stop/cleanup |
+|---|---|---|
+| `MeetingWatcher` | `start()` finds or awaits a classroom; `getContainer()` exposes it. | `stop()` disconnects observers and clears the container without `onLeave`. |
+| `QuizObserver` | `start(container)` resets prior observation, emits an existing quiz, then keeps observing. | `stop()` disconnects and clears container and last-emission identity. |
+| `QuizWorkflow` | `process(quiz)` guards, sends, checks the response, then acts. | `cleanup()` delegates to actor cleanup; it does not cancel inference. |
+| `Actor` | `act({ quiz, result }): Promise<void>`. | `cleanup(): void`. |
+| `ConfigStore` | `load()`, `save(config)`, `get()`, compatibility `getConfig()`. | `subscribe(listener)` returns an unsubscribe function. |
+| `MessageRouter` | Chainable `register(type, handler)`, then `listen()` attaches one listener. | No removal method is exposed. |
+
+Meeting search observes `#root`/`body` recursively. During a session, quiz observation watches the classroom subtree and removal observation watches its parent, usually shallowly. There is no single-observer guarantee or URL-route filter.
+
+## 4. Quiz representation and execution
+
+A `DetectedOption` owns `{ label, text, index, element }`, avoiding index-aligned arrays in the actor path. `QuizData` also retains optional `optionElements`, which the extractor still fills for compatibility.
+
+Question parsing preserves internal `<pre>` whitespace after trimming. Other blocks and option texts are normalized. Extraction requires at least one option with text; it does not guarantee complete option hydration. Already-answered state is a snapshot of `.choice--selected` presence at extraction time.
+
+The observer deduplicates by element reference and question text. It observes child-list and text mutations, not attribute changes, and ignores option-only differences when determining whether to emit.
+
+The workflow sends only serializable question/options/model data. It catches errors and skips actors for `ERROR` or unexpected responses. After solving it checks current enablement and quiz connectivity. It does not verify that the question is unchanged, every option is connected, the student has not answered meanwhile, or time remains. Actor mode is resolved through the workflow's current actor at execution time.
+
+The assisted actor stores and restores full inline CSS on the chosen element and its descendants. The auto actor dispatches pointer/mouse events and performs no acceptance check. Invalid option indexes are ignored by either actor.
+
+## 5. Configuration and popup
+
+`RinConfig` contains `enabled`, `actorMode`, and optional `model`. Settings persist at `rinConfig` in `browser.storage.local`. `load()` merges stored values over defaults and catches read failures. `subscribe()` publishes both the new configuration and the previous cached value for local `rinConfig` changes.
+
+`save()` replaces the cache after an awaited write and rethrows failures, but `load()` and `get()` return mutable references. The procedural popup mutates its loaded configuration before saving and updates mode/model visuals immediately. Consequently failed writes can leave cache and popup state ahead of persisted storage. There is no `PopupView`/`PopupController` class, rollback, or popup storage-change subscription.
+
+Model preset IDs are `deepseek/deepseek-v4-flash` and `google/gemini-2.5-flash`. A custom field trims its input and falls back to DeepSeek when empty. Production removes these controls but retains stored model values in configuration.
+
+## 6. Routing and dependency boundaries
+
+The actor factory uses a mode-to-constructor registry. Both actors implement the same small interface. The workflow accepts an injected actor, configuration, solver sender, and optional processed hook. Worker-side inference has its own injectable `InferenceClient` interface.
+
+`MessageRouter.register<K>()` maps message names to their payload types at compile time. The internal registry stores a broadly typed handler, and runtime messages are cast rather than schema-validated. `listen()` attaches the browser listener, passes only payload to a recognized handler, returns `true` for async handling, and converts synchronous/rejected errors to `ERROR`. Unknown messages return false. It does not validate senders or remove its listener.
+
+These boundaries support extension through actor and route registration. Some dependencies remain concrete: entrypoints use the config singleton, and `ConfigStore`/`WorkerClient` access global browser/fetch APIs. Several tests spy on prototypes or module exports. The codebase does not implement universal constructor injection or runtime schema enforcement.
+
+## 7. Development diagnostics
+
+The content entrypoint gates diagnostics with `import.meta.env.DEV`. The workflow itself has no development branch: its optional processed hook records the quiz after an actor resolves. Automatic recording stores metadata, raw quiz HTML, and current root HTML under `rinSnapshots`, with no automatic download or retention cap. Storage errors are swallowed.
+
+`Alt+Shift+S` and `Ctrl+Alt+S` create manual root/body snapshots, trigger a Blob download, and attempt storage persistence. Recorder functions themselves are callable in any environment; their normal entrypoint wiring is development-only.
+
+Normal logger calls are silent in production. Development logs use the background console, with runtime forwarding from content/popup contexts. The `LOG` background route still directly calls the printer. No benchmark integration or persisted production quiz history is implemented.
+
+## 8. Differences from the original proposal
+
+| Original intent | Current implementation |
+|---|---|
+| Unified configuration with zero state drift | Unified store exists; mutable references and popup writes prevent a general transactional guarantee. |
+| Eliminate parallel option arrays | Actor access uses `.element`; optional `optionElements` remains populated. |
+| Separate popup view and controller | Popup is a procedural module with UI helper functions. |
+| Router callback registered by the background | `MessageRouter.listen()` registers the runtime callback itself. |
+| Isolate diagnostic code | Entry points gate hooks/hotkeys; recording runs after action, and ordinary production logger dispatch returns early. |
+| Symmetrical watcher cleanup | Implemented start/stop methods; ancestor removal and in-flight requests retain the limits described above. |
+
+The old folder names and sample implementations have been removed from this maintained reference. Local implementation plans under `docs/superpowers/plans/` are ignored by Git and should be treated as historical proposals, not instructions to rerun the refactor.
+
+## 9. Verification
+
+Run from the repository root:
+
+```bash
+pnpm test
+pnpm typecheck
 ```
-packages/extension/src/
-├── actors/                      # Output action strategies
-│   ├── types.ts                 # Actor, ActPayload, ActorMode
-│   ├── hud.ts                   # HudActor (assisted mode)
-│   ├── click.ts                 # ClickActor (auto mode)
-│   └── factory.ts               # createActor() via ACTOR_STRATEGIES map
-│
-├── config/                      # User settings & persistence
-│   ├── types.ts                 # RinConfig, ConfigChangeListener
-│   ├── defaults.ts              # DEFAULT_CONFIG, DEFAULT_MODEL
-│   └── store.ts                 # ConfigStore (browser.storage.local wrapper & reactive pub/sub)
-│
-├── dom/                         # Shared DOM selectors & utilities
-│   ├── selectors.ts             # Scaler Drona CSS selectors (.m-activity, div.m-quiz, etc.)
-│   └── utils.ts                 # normalizeWhitespace, findSelfOrDescendant
-│
-├── meeting/                     # Meeting session lifecycle
-│   ├── types.ts                 # MeetingCallbacks
-│   └── watcher.ts               # MeetingWatcher (detects enter, unmount, and handles re-arming)
-│
-├── quiz/                        # Quiz parsing, observing, and execution workflow
-│   ├── types.ts                 # DetectedOption, QuizData, QuizObserverCallbacks
-│   ├── extractor.ts             # Pure functional DOM parser (question, options, hydration check)
-│   ├── observer.ts              # QuizObserver (watches meetingContainer for div.m-quiz & hydration)
-│   └── workflow.ts              # QuizWorkflow (orchestrates guard -> solve -> act)
-│
-├── solver/                      # Solver communication
-│   └── client.ts                # WorkerClient (POST /solve on custom domain with error parsing)
-│
-├── messaging/                   # Extension messaging & logging
-│   ├── types.ts                 # ContentMessage, BackgroundResponse, LogPayload, LogLevel
-│   ├── messenger.ts             # sendToBackground()
-│   ├── router.ts                # MessageRouter (declarative message-to-handler registry)
-│   └── logger.ts                # logger dispatcher & prettyPrintLog
-│
-├── diagnostics/                 # Dev-only tooling & telemetry (isolated)
-│   ├── recorder.ts              # Snapshot capture & DOM downloader (Blob)
-│   └── hotkeys.ts               # Alt+Shift+S / Ctrl+Alt+S snapshot hotkey listener
-│
-├── entrypoints/                 # WXT Extension Entrypoints (Composition Roots)
-│   ├── background.ts            # Background service worker registering MessageRouter handlers
-│   ├── drona.content.ts         # Content script composing MeetingWatcher, QuizObserver, Workflow
-│   └── popup/                   # Browser action popup UI
-│       ├── index.html
-│       ├── popup.css
-│       └── main.ts              # Popup controller binding DOM to ConfigStore
-│
-└── env.d.ts                     # Ambient Vite environment definitions
-```
 
----
+Extension suites cover actors, configuration, DOM utilities, extractor, meeting watcher, quiz observer, workflow, worker client, router, messenger, logger, recorder/hotkeys, entrypoints, and popup. Worker suites cover HTTP/solving and answer parsing. Tests use mocked WebExtension/network APIs and JSDOM configured through `vitest.setup.ts` and `vitest.config.ts`. The full suite's current result is reported by Vitest rather than a fixed historical test count.
 
-## 3. Domain Specifications
-
-### 3.1. Actors (`src/actors/`)
-
-- **`types.ts`**:
-  ```ts
-  export type ActorMode = 'assisted' | 'auto';
-
-  export interface ActPayload {
-    quiz: QuizData;
-    result: SolveResult;
-  }
-
-  export interface Actor {
-    readonly mode: ActorMode;
-    act(payload: ActPayload): Promise<void>;
-    cleanup(): void;
-  }
-  ```
-- **`factory.ts`**: Replaces the static class and `switch/case` statement with a strategy registry adhering to OCP:
-  ```ts
-  type ActorConstructor = new () => Actor;
-
-  export const ACTOR_STRATEGIES: Record<ActorMode, ActorConstructor> = {
-    assisted: HudActor,
-    auto: ClickActor,
-  };
-
-  export function createActor(mode: ActorMode): Actor {
-    const Strategy = ACTOR_STRATEGIES[mode] ?? HudActor;
-    return new Strategy();
-  }
-  ```
-- **`hud.ts`**: Implements `HudActor`, applying `#e8d5f5` background and `#a855f7` border ring to `payload.quiz.options[payload.result.chosenIndex].element`. Preserves original inline styles and reverts them in `cleanup()`.
-- **`click.ts`**: Implements `ClickActor`, dispatching the 5-stage synthetic pointer/mouse event sequence on `payload.quiz.options[payload.result.chosenIndex].element`.
-
----
-
-### 3.2. Configuration (`src/config/`)
-
-- **`store.ts`**: Consolidates `config.ts` and `config.service.ts` into a single, cohesive `ConfigStore`:
-  ```ts
-  export class ConfigStore {
-    private cachedConfig: RinConfig = { ...DEFAULT_CONFIG };
-
-    /**
-     * Loads configuration from browser.storage.local.
-     * Gracefully falls back to DEFAULT_CONFIG if storage is inaccessible or uninitialized.
-     */
-    async load(): Promise<RinConfig> {
-      try {
-        const stored = await browser.storage.local.get('rinConfig');
-        this.cachedConfig = {
-          ...DEFAULT_CONFIG,
-          ...(stored?.rinConfig || {}),
-        };
-      } catch (err) {
-        logger.error('ConfigStore', `Failed to load config from storage: ${(err as Error)?.message ?? err}`);
-        this.cachedConfig = { ...DEFAULT_CONFIG };
-      }
-      return this.cachedConfig;
-    }
-
-    /**
-     * Persists configuration to browser.storage.local.
-     * Transactional: only updates in-memory cache upon confirmed disk write.
-     * Rethrows errors so callers (e.g. UI toggles) know the persistence failed.
-     */
-    async save(newConfig: RinConfig): Promise<void> {
-      try {
-        await browser.storage.local.set({ rinConfig: newConfig });
-        // Transaction complete: update in-memory cache only after successful persistence
-        this.cachedConfig = { ...newConfig };
-      } catch (err) {
-        logger.error('ConfigStore', `Failed to persist config to storage: ${(err as Error)?.message ?? err}`);
-        throw err;
-      }
-    }
-
-    get(): RinConfig {
-      return this.cachedConfig;
-    }
-
-    subscribe(listener: ConfigChangeListener): () => void {
-      const handler = (changes: Record<string, { newValue?: any }>, area: string) => {
-        if (area === 'local' && changes.rinConfig) {
-          this.cachedConfig = {
-            ...DEFAULT_CONFIG,
-            ...(changes.rinConfig.newValue || {}),
-          };
-          listener(this.cachedConfig);
-        }
-      };
-      browser.storage.onChanged.addListener(handler);
-      return () => browser.storage.onChanged.removeListener(handler);
-    }
-  }
-
-  export const configStore = new ConfigStore();
-  ```
-
----
-
-### 3.3. Meeting Lifecycle (`src/meeting/`)
-
-- **`types.ts`**:
-  ```ts
-  export interface MeetingCallbacks {
-    onEnter: (meetingContainer: HTMLElement) => void;
-    onLeave: () => void;
-  }
-  ```
-- **`watcher.ts`**: A unified state machine component replacing `waitForMeeting`, `watchMeetingUnmount`, and `MeetingCoordinator`:
-  - `start()`: Queries for `SELECTORS.meeting.container` (or observes `#root` / `body`). Once mounted, calls `onEnter(meetingContainer)` and immediately attaches a shallow observer on `meetingContainer.parentElement` to detect unmount.
-  - `handleLeave()`: Calls `onLeave()`, cleans up unmount observer, and immediately re-arms by calling `start()` to wait for the next lecture session in the same browser tab.
-  - `stop()`: Disconnects all active observers and resets container references.
-
----
-
-### 3.4. Quiz Extraction & Observation (`src/quiz/`)
-
-- **`types.ts`**:
-  ```ts
-  export interface DetectedOption {
-    label: string;
-    text: string;
-    index: number;
-    element: HTMLElement; // Eliminates parallel arrays!
-  }
-
-  export interface QuizData {
-    question: string;
-    options: DetectedOption[];
-    containerElement: HTMLElement;
-    alreadyAnswered: boolean;
-    detectedAt: number;
-    rawHtml: string;
-  }
-
-  export interface QuizObserverCallbacks {
-    onQuiz: (quiz: QuizData) => void;
-  }
-  ```
-
-- **`extractor.ts`**: Decomposed into single-responsibility pure functions:
-  - `normalizeWhitespace(text)`: Collapses multiple spaces and trims.
-  - `extractBlockText(node)`: Preserves whitespace/indentation for `<pre>`/`<code>` blocks, normalizes whitespace for paragraphs.
-  - `parseQuestion(root)`: Extracts markdown description text block-by-block.
-  - `parseOption(node, index)`: Extracts label, option text, index, and binds the raw `element`.
-  - `extractQuiz(container)`: Finds `div.m-quiz`, parses question and options, runs explicit hydration guard (`question.length > 0 && options.some(opt => opt.text.length > 0)`), and returns `QuizData | null`.
-
-- **`observer.ts`**: Symmetrical with `MeetingWatcher`:
-  - Constructor takes `QuizObserverCallbacks`.
-  - `start(meetingContainer: HTMLElement)`: Fast-paths if a hydrated quiz is already present, then attaches a `MutationObserver` on `meetingContainer` with `{ childList: true, subtree: true, characterData: true }`. Calls `callbacks.onQuiz(quizData)` when a fully hydrated quiz is extracted.
-  - `stop()`: Disconnects the observer and clears references.
-
-- **`workflow.ts`**: Pure pipeline coordinator:
-  - Orchestrates: `guard (!enabled || alreadyAnswered) -> solver.solve(...) -> actor.act(...)`.
-  - Free of inline `import.meta.env.DEV` checks or file downloading logic. Diagnostic hooks are exposed via optional constructor callbacks (`onQuizProcessed?: (quiz: QuizData) => void`).
-
----
-
-### 3.5. Messaging & Background Routing (`src/messaging/` & `src/entrypoints/background.ts`)
-
-- **`types.ts`**:
-  ```ts
-  export interface MessagePayloads {
-    SOLVE_QUIZ: QuizInput;
-    GET_CONFIG: void;
-    LOG: LogPayload;
-  }
-
-  export type MessageType = keyof MessagePayloads;
-
-  export type ContentMessage =
-    | { type: 'SOLVE_QUIZ'; payload: QuizInput }
-    | { type: 'GET_CONFIG' }
-    | { type: 'LOG'; payload: LogPayload };
-
-  export type BackgroundResponse =
-    | { type: 'QUIZ_SOLVED'; payload: SolveResult }
-    | { type: 'CONFIG'; payload: RinConfig }
-    | { type: 'ACK' }
-    | { type: 'ERROR'; payload: { message: string } };
-  ```
-
-- **`router.ts`**: OCP-compliant message registry with automatic payload type inference:
-  ```ts
-  export type MessageHandler = (payload: any) => Promise<BackgroundResponse>;
-
-  export class MessageRouter {
-    private handlers = new Map<MessageType, MessageHandler>();
-
-    /**
-     * Registers a message handler with automatic payload type inference.
-     * TypeScript maps `type: K` directly to `payload: MessagePayloads[K]`.
-     */
-    register<K extends MessageType>(
-      type: K,
-      handler: (payload: MessagePayloads[K]) => Promise<BackgroundResponse>
-    ): this {
-      this.handlers.set(type, handler);
-      return this;
-    }
-
-    listen() {
-      return (message: unknown, _sender: unknown, sendResponse: (res: BackgroundResponse) => void): boolean => {
-        const msg = message as ContentMessage;
-        if (!msg || !msg.type) return false;
-
-        const handler = this.handlers.get(msg.type);
-        if (!handler) return false;
-
-        const payload = 'payload' in msg ? msg.payload : undefined;
-
-        handler(payload)
-          .then((response) => sendResponse(response))
-          .catch((err) => {
-            sendResponse({
-              type: 'ERROR',
-              payload: { message: err?.message ?? String(err) },
-            });
-          });
-
-        return true; // Keep channel open for async response
-      };
-    }
-  }
-  ```
-
-- **`background.ts`**:
-  ```ts
-  export default defineBackground(() => {
-    logger.info('Background', 'Rin service worker initialized');
-    const solver = new WorkerClient();
-
-    // Handlers automatically infer their exact payload types from the route string!
-    const router = new MessageRouter()
-      .register('LOG', async (payload) => {
-        prettyPrintLog(payload);
-        return { type: 'ACK' };
-      })
-      .register('GET_CONFIG', async () => {
-        const config = await configStore.load();
-        return { type: 'CONFIG', payload: config };
-      })
-      .register('SOLVE_QUIZ', async (payload) => {
-        const config = await configStore.load();
-        const model = import.meta.env.DEV && config.model ? config.model : payload.model;
-        const result = await solver.solve({ ...payload, model });
-        return { type: 'QUIZ_SOLVED', payload: result };
-      });
-
-    browser.runtime.onMessage.addListener(router.listen());
-  });
-  ```
-
----
-
-### 3.6. Popup Controller (`src/entrypoints/popup/main.ts`)
-
-- Refactored into a clear, structured module:
-  - `PopupView`: Selects and updates UI elements (`updateMode(mode)`, `updateModel(model)`, `updateEnabled(enabled)`).
-  - `PopupController`: Connects `ConfigStore` with DOM events, eliminating raw procedural script sprawl.
-
----
-
-### 3.7. Diagnostics (`src/diagnostics/`)
-
-- **`recorder.ts`**: Encapsulates `captureRootHtml()`, `formatDownloadableHtml()`, `triggerSnapshotDownload()`, and snapshot persistence.
-- **`hotkeys.ts`**: Encapsulates the `Alt+Shift+S` / `Ctrl+Alt+S` event listener and cleanup function.
-- Completely isolated from production code paths.
-
----
-
-## 4. Testing & Verification Strategy
-
-All 15 existing test suites (124 tests) must pass with zero regressions. Test files will be updated to reflect the new directory structure:
-
-1. `tests/actors.test.ts`: Tests `createActor()`, `HudActor`, `ClickActor`.
-2. `tests/config-store.test.ts`: Consolidated tests for `ConfigStore` (load, save, subscribe). Replaces redundant `config.test.ts` and `config-service.test.ts`.
-3. `tests/extractor.test.ts`: Tests `extractQuiz` with `DetectedOption`, whitespace normalization, code block preservation, and hydration guards.
-4. `tests/meeting-watcher.test.ts`: Tests `MeetingWatcher` lifecycle, enter/unmount, and session re-arming.
-5. `tests/quiz-observer.test.ts`: Tests `QuizObserver` hydration detection and fast-paths.
-6. `tests/quiz-workflow.test.ts`: Tests `QuizWorkflow` solver delegation and actor execution.
-7. `tests/message-router.test.ts`: Unit tests for `MessageRouter` handling async responses, errors, and missing handlers.
-8. `tests/entrypoints.test.ts`: Tests for background and content script composition roots.
-
----
-
-## 5. Execution Guardrails
-
-- **Zero Regressions**: `pnpm test` (all 124+ tests) must pass cleanly.
-- **Zero Type Errors**: `pnpm typecheck` must pass with 0 errors across `@rin/shared`, `@rin/worker`, and `@rin/extension`.
-- **No Push**: `git push` will strictly NOT be executed.
+For production builds and packaging, use [BUILD.md](../../../BUILD.md). Those checks establish compilation and artifact generation; live Scaler interactions, model availability, accuracy, and latency require separate runtime verification.

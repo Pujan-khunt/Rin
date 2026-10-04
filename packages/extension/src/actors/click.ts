@@ -2,10 +2,8 @@ import type { Actor, ActPayload, ActorMode } from '@/actors/types';
 import { logger } from '@/messaging/logger';
 
 /**
- * Dispatches a complete 5-stage synthetic interaction sequence on the target element.
- *
- * Modern SPAs and React event delegation do not rely solely on `click`; component
- * state machines track `pointerdown`/`mousedown` to differentiate taps from scrolls.
+ * Dispatches pointerdown, mousedown, pointerup, mouseup, and click.
+ * These synthetic events do not confirm that the host accepted an answer.
  */
 export function simulateClick(target: HTMLElement): void {
   const eventOpts: MouseEventInit = { bubbles: true, cancelable: true, view: window, button: 0 };
@@ -20,8 +18,8 @@ export function simulateClick(target: HTMLElement): void {
 /**
  * ClickActor — Execution strategy for 'auto' mode.
  *
- * Automatically submits the solver's recommended choice by simulating a native
- * user click directly on the corresponding option DOM element.
+ * Dispatches synthetic events on the recommended option. The host application
+ * controls selection and submission.
  */
 export class ClickActor implements Actor {
   readonly mode: ActorMode = 'auto';

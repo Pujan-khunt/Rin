@@ -10,8 +10,10 @@ export interface QuizData {
   options: DetectedOption[];
   containerElement: HTMLElement;
   alreadyAnswered: boolean;
+  /** Monotonic extraction timestamp from performance.now(). */
   detectedAt: number;
   rawHtml: string;
+  /** Compatibility array; actors use options[index].element. */
   optionElements?: HTMLElement[];
 }
 

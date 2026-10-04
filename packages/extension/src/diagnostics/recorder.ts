@@ -79,7 +79,8 @@ export function triggerSnapshotDownload(html: string, filename: string): void {
 }
 
 /**
- * Persists the snapshot to extension local storage.
+ * Prepends a snapshot to local rinSnapshots without a retention cap.
+ * Storage failures are swallowed.
  */
 export async function saveSnapshotToStorage(snapshot: QuizSnapshot): Promise<void> {
   try {
@@ -112,7 +113,8 @@ export function createManualSnapshot(): QuizSnapshot {
 }
 
 /**
- * Records a quiz event snapshot, capturing both the isolated quiz HTML and the full React root HTML.
+ * Stores quiz HTML captured at extraction and current root/body HTML.
+ * The development workflow calls this after the actor resolves; no download occurs.
  */
 export async function recordQuizSnapshot(quiz: QuizData): Promise<QuizSnapshot> {
   const rootHtml = captureRootHtml();

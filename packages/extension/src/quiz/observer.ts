@@ -7,11 +7,12 @@ import type { QuizObserverCallbacks } from '@/quiz/types';
  *
  * Observes the meeting container for live quiz appearances and asynchronous
  * markdown/choices hydration:
- * - Fast-paths if a fully hydrated quiz is already present in the container.
+ * - Fast-paths if a quiz satisfies the extractor's question/option text guard.
  * - Reactively observes subtree mutations (childList, subtree, characterData)
  *   to catch dynamically mounted questions and choices.
  * - Deduplicates emissions to prevent redundant processing for the same quiz.
- * - Automatically disconnects if the container is detached from the DOM.
+ * - Stops when a mutation callback finds the container detached; the meeting
+ *   watcher also stops quiz observation on an observed classroom removal.
  */
 export class QuizObserver {
   private container: HTMLElement | null = null;
@@ -30,7 +31,7 @@ export class QuizObserver {
 
   /**
    * Starts observing the meeting container for quizzes.
-   * Fast-paths if a quiz is already fully hydrated; otherwise attaches a MutationObserver.
+   * Emits an extractable existing quiz, then keeps observing subsequent mutations.
    */
   start(meetingContainer: HTMLElement): void {
     this.stop();
@@ -41,7 +42,7 @@ export class QuizObserver {
       return;
     }
 
-    // Fast-path: Check if a fully hydrated quiz already exists in the container
+    // Fast-path: Check if an extractable quiz already exists in the container.
     const initialQuiz = extractQuiz(meetingContainer);
     if (initialQuiz) {
       logger.info('QuizObserver', 'Quiz already hydrated on initial detection.', {

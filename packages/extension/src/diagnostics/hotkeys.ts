@@ -8,7 +8,7 @@ import {
 
 /**
  * Sets up a dev-only hotkey listener on the window.
- * Listens for Alt+Shift+S (or Ctrl+Alt+S) to capture a full DOM snapshot immediately.
+ * Listens for Alt+Shift+S (or Ctrl+Alt+S) to capture #root or body HTML.
  * Returns a teardown function to unbind the listener.
  */
 export function setupDevSnapshotHotkey(

@@ -16,8 +16,7 @@ interface ModifiedElement {
  * 1. Uses `!important` declarations to override existing CSS specificity.
  * 2. Temporarily makes all child elements transparent so opaque containers
  *    (e.g., Markdown renders, text spans) do not occlude the option background.
- * 3. Preserves original `cssText` across all modified elements to guarantee
- *    a clean, zero-artifact restoration when `cleanup()` is called.
+ * 3. Restores the saved inline `cssText` when `cleanup()` is called.
  */
 export class HudActor implements Actor {
   readonly mode: ActorMode = 'assisted';

@@ -9,13 +9,9 @@ import { logger } from '@/messaging/logger';
 export type SolverSender = (msg: { type: 'SOLVE_QUIZ'; payload: QuizInput }) => Promise<BackgroundResponse>;
 
 /**
- * Pure quiz resolution and action execution pipeline.
- *
- * Adheres strictly to:
- * - Single Responsibility Principle (SRP): Focuses entirely on the quiz processing lifecycle
- *   (guard check -> solver request -> actor execution -> callback notification).
- * - Dependency Inversion Principle (DIP): Injects actor, config, solver, and lifecycle hooks.
- * - Open/Closed Principle (OCP): Diagnostic recorders and actors are injected rather than hardcoded.
+ * Coordinates guards, the injected solver sender, current actor, and processed hook.
+ * After solving, checks enablement and quiz connectivity; selected-choice state
+ * remains the snapshot taken during extraction.
  */
 export class QuizWorkflow {
   constructor(

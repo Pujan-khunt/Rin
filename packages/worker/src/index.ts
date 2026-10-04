@@ -18,11 +18,11 @@ export type { Env };
 const defaultClient = new OpenRouterClient();
 
 /**
- * Coordinates end-to-end quiz solving:
+ * Coordinates worker-side quiz solving:
  * 1. Builds chat completion prompt payload
  * 2. Invokes inference client
  * 3. Parses choice from output
- * 4. Measures latency and returns normalized SolveResult
+ * 4. Returns the choice and worker-side duration, excluding client transport
  */
 export async function solve(
   quiz: QuizInput,

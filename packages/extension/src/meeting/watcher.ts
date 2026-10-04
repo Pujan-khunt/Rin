@@ -7,9 +7,9 @@ import type { MeetingCallbacks } from '@/meeting/types';
  * Ephemeral meeting watcher and session lifecycle manager.
  *
  * Implements symmetrical lifecycle observation for classroom meetings:
- * - Fast-paths existing DOM meeting containers (.m-activity or .vp-container).
+ * - Fast-paths .m-activity, plus .vp-container in development.
  * - Reactively observes root element (#root / body) for container insertion.
- * - Attaches unmount observer to container's parent to detect detachment.
+ * - Watches the immediate parent for removal (recursive only for body).
  * - Automatically self-rearms upon unmount for seamless subsequent sessions.
  */
 export class MeetingWatcher {
@@ -41,7 +41,7 @@ export class MeetingWatcher {
       return;
     }
 
-    // Fast-path: Check if meeting or recorded container is already present in DOM
+    // Fast-path: Check for a container using the environment's selectors.
     const existing = document.querySelector<HTMLElement>(SELECTORS.meeting.container);
     if (existing) {
       logger.info('MeetingWatcher', 'Meeting container already present in DOM on start.');

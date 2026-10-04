@@ -19,17 +19,12 @@ export interface QuizChoice {
 }
 
 /**
- * Represents a choice extracted directly from the browser DOM.
- *
- * Extends {@link QuizChoice} by adding client-side positional metadata
- * needed by UI execution actors (`HudActor` and `ClickActor`) to locate
- * the corresponding HTML element in the DOM tree.
+ * Serializable choice with a zero-based position. The extension's DOM-bound
+ * DetectedOption also holds an element reference used by its actors.
  */
 export interface QuizOption extends QuizChoice {
   /**
    * Zero-based index of this option within the quiz's option list.
-   * Directly correlates with `optionElements[index]` in the extension DOM layer,
-   * enabling actors to highlight or click the target element without DOM rescans.
    */
   index: number;
 }
@@ -57,4 +52,3 @@ export interface QuizInput {
    */
   model?: string;
 }
-

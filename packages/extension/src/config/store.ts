@@ -3,11 +3,8 @@ import { DEFAULT_CONFIG } from '@/config/defaults';
 import type { ConfigChangeListener, RinConfig } from '@/config/types';
 
 /**
- * Unified Configuration Store managing persistence, caching, and real-time pub/sub.
- *
- * Adheres to:
- * - Single Responsibility Principle (SRP): Isolates configuration lifecycle, storage, and caching.
- * - Transactional Integrity: Never mutates in-memory cache until storage write succeeds (zero state drift).
+ * Local settings persistence, cache, and storage-change subscriptions.
+ * Cached objects are exposed by reference and can be mutated by callers.
  */
 export class ConfigStore {
   private cachedConfig: RinConfig;
@@ -40,7 +37,8 @@ export class ConfigStore {
 
   /**
    * Persists configuration to browser.storage.local.
-   * Transactional: only updates in-memory cache upon confirmed disk write.
+   * Replaces the cache after a successful write. Caller mutations of an exposed
+   * cached object are not rolled back on failure.
    * Rethrows errors so callers (e.g. UI toggles) know the persistence failed.
    */
   async save(newConfig: RinConfig): Promise<void> {
@@ -49,7 +47,7 @@ export class ConfigStore {
         throw new Error('browser.storage.local is unavailable');
       }
       await browser.storage.local.set({ rinConfig: newConfig });
-      // Transaction complete: update in-memory cache only after successful persistence
+      // Replace the cache only after storage confirms the write.
       this.cachedConfig = { ...newConfig };
       logger.debug('ConfigStore', 'Saved configuration to storage', this.cachedConfig);
     } catch (err) {

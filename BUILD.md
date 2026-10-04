@@ -1,50 +1,85 @@
-# Build Instructions for Mozilla Add-on Reviewers
+# Building Rin and preparing reviewer artifacts
 
-This document provides step-by-step instructions to reproduce the exact build of the **Rin** Firefox extension from this source code archive.
+The browser extension is built from `packages/extension` using WXT and Vite. `packages/shared` supplies TypeScript contracts; `packages/worker` is a separately deployed Cloudflare Worker and is not bundled into the extension.
 
----
+## Environment
 
-## 1. Environment & Prerequisites
+The build verification environment uses Node.js **22.23.2**, pnpm **12.6.0**, WXT **0.21.4**, and the committed `pnpm-lock.yaml`. WXT and Wrangler require Node.js 22 or newer. Commands below use Bash syntax; in PowerShell set `$env:RIN_CLIENT_KEY = 'test-build-key'` before running the pnpm commands without the inline assignment.
 
-- **Operating System**: Linux, macOS, or Windows
-- **Node.js**: `v20.x` or later (tested on Node v20/v22)
-- **pnpm**: `v9.x` or later (Enable via Corepack: `corepack enable pnpm` or `npm install -g pnpm`)
+From the repository root:
 
----
-
-## 2. Project Architecture
-
-This repository is organized as a pnpm monorepo containing:
-- `packages/extension`: The WebExtension (built with WXT and Vite).
-- `packages/shared`: Shared TypeScript types and interfaces between client and worker.
-- `packages/worker`: Cloudflare Worker solver backend (independent package, not bundled into extension).
-
----
-
-## 3. Build Reproduction Steps
-
-### Step 1: Install Dependencies
-From the repository root directory, run:
 ```bash
 pnpm install --frozen-lockfile
 ```
 
-### Step 2: Build the Firefox WebExtension
-From the repository root directory, provide a build-time client key and run:
+The extension's `postinstall` script runs `wxt prepare` to generate ambient types. The workspace build policy allows the esbuild, sharp, and workerd dependency build scripts.
+
+## Build and package
+
+An extension build must have a client key. `RIN_CLIENT_KEY` takes precedence over the supported fallback `VITE_RIN_CLIENT_KEY`. This value is compiled into the bundle, so changing it changes the artifact. The dummy key below is suitable for build review; solver requests require the key configured on the deployed worker.
+
+### Chrome
+
+```bash
+RIN_CLIENT_KEY="test-build-key" pnpm build
+RIN_CLIENT_KEY="test-build-key" pnpm --filter @rin/extension zip
+```
+
+The root `build` script invokes workspace build scripts. Only the extension currently defines one, producing the Chrome Manifest V3 bundle.
+
+### Firefox
+
 ```bash
 RIN_CLIENT_KEY="test-build-key" pnpm --filter @rin/extension build:firefox
-```
-Or to build and generate the distribution `.zip`:
-```bash
 RIN_CLIENT_KEY="test-build-key" pnpm --filter @rin/extension zip:firefox
 ```
 
----
+### Both browser archives
 
-## 4. Build Artifacts
+```bash
+RIN_CLIENT_KEY="test-build-key" pnpm --filter @rin/extension zip:all
+```
 
-After running the build command:
-- **Unpacked extension**: `packages/extension/.output/firefox-mv3/`
-- **Packaged extension zip**: `packages/extension/.output/rinextension-0.1.0-firefox.zip`
+This command runs Chrome packaging followed by Firefox packaging. Firefox packaging also creates a sources archive. In the verified build, that archive contains the extension package only: it omits the monorepo root configuration, lockfile, and shared package needed to rebuild. Include the full monorepo source archive described below for reviewer reproduction.
 
-The resulting manifest will be located at `packages/extension/.output/firefox-mv3/manifest.json`.
+## Artifact locations
+
+All paths are relative to the repository root and use the current extension version, `0.1.0`:
+
+| Artifact | Path |
+|---|---|
+| Chrome bundle | `packages/extension/.output/chrome-mv3/` |
+| Chrome manifest | `packages/extension/.output/chrome-mv3/manifest.json` |
+| Chrome archive | `packages/extension/.output/rinextension-0.1.0-chrome.zip` |
+| Firefox bundle | `packages/extension/.output/firefox-mv3/` |
+| Firefox manifest | `packages/extension/.output/firefox-mv3/manifest.json` |
+| Firefox archive | `packages/extension/.output/rinextension-0.1.0-firefox.zip` |
+| WXT sources archive | `packages/extension/.output/rinextension-0.1.0-sources.zip` |
+
+Use the actual names printed by WXT if the extension name or version changes.
+
+For a separate archive of the entire committed monorepo, run this after committing the intended source snapshot:
+
+```bash
+git archive --format=zip --output=/tmp/rin-sources.zip HEAD
+```
+
+`git archive` includes tracked files from `HEAD`, including the lockfile, shared package, and worker source. It excludes uncommitted edits, ignored files, dependencies, and generated build artifacts. The client key used for the submitted binary must be supplied separately to reproduce that binary; rebuilding with a dummy key does not produce identical bytes.
+
+## Local loading
+
+- **Chrome:** open `chrome://extensions`, enable Developer mode, select **Load unpacked**, and choose `packages/extension/.output/chrome-mv3/`.
+- **Firefox:** open `about:debugging#/runtime/this-firefox`, select **Load Temporary Add-on**, and choose the Firefox bundle's `manifest.json`.
+
+The generated manifests use Manifest V3 and include the popup, content script, icons, storage permission, and host permissions. Firefox uses WXT's generated background scripts configuration; Chrome uses a background service worker. The configured Firefox minimum is 140.0, with a Firefox Android minimum of 142.0. Builds validate artifact generation, not live browser or mobile behavior.
+
+## Checks and backend setup
+
+```bash
+pnpm test
+pnpm typecheck
+```
+
+Tests provide mocked runtime and network coverage. Type checking runs across all three packages and regenerates WXT types for the extension.
+
+The extension targets `https://rin-worker.pujankhunt.me/solve` in both development and production. A working solver requires `OPENROUTER_API_KEY` and a matching `RIN_CLIENT_KEY` on that worker. See the [README](README.md#credentials) for local worker variables, secret setup, and deployment commands. Extension packaging does not deploy the worker or verify upstream model access.
