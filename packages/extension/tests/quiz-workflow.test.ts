@@ -83,7 +83,7 @@ describe('QuizWorkflow', () => {
       mockSolver,
       mockOnQuizProcessed
     );
-    mockQuiz.options[1].element.classList.add('choice--selected');
+    mockQuiz.options[1]!.element.classList.add('choice--selected');
     expect(mockQuiz.alreadyAnswered).toBe(false);
 
     await workflow.process(mockQuiz);
@@ -117,7 +117,7 @@ describe('QuizWorkflow', () => {
       expect(mockSolver).toHaveBeenCalledTimes(1);
       expect(actor.act).not.toHaveBeenCalled();
 
-      const selected = mockQuiz.options[selectedIndex].element;
+      const selected = mockQuiz.options[selectedIndex]!.element;
       selected.classList.add('choice--selected');
       expect(mockQuiz.alreadyAnswered).toBe(false);
       resolveSolve(solvedResponse);
@@ -170,10 +170,10 @@ describe('QuizWorkflow', () => {
     expect(mockOnQuizProcessed).toHaveBeenCalledWith(mockQuiz);
   });
 
-  it('sends solve request with mapped options and model, invokes actor and onQuizProcessed on QUIZ_SOLVED', async () => {
+  it('sends solve request with mapped options, invokes actor and onQuizProcessed on QUIZ_SOLVED', async () => {
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true, model: 'deepseek/deepseek-v4-flash' },
+      { actorMode: 'assisted', enabled: true },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -188,7 +188,6 @@ describe('QuizWorkflow', () => {
           { label: 'A', text: 'Option 1' },
           { label: 'B', text: 'Option 2' },
         ],
-        model: 'deepseek/deepseek-v4-flash',
       },
     });
     expect(mockActor.act).toHaveBeenCalledWith({

@@ -1,6 +1,6 @@
 # Rin 🌸
 
-Rin is a Manifest V3 browser extension that detects multiple-choice quizzes in Scaler's Drona classrooms, requests an answer through a Cloudflare Worker and OpenRouter, and highlights or clicks the recommended option.
+Rin is a Manifest V3 browser extension that detects multiple-choice quizzes in Scaler's Drona classrooms, requests an answer through a Cloudflare Worker and DeepSeek API, and highlights or clicks the recommended option.
 
 - **Assisted mode (default):** adds a light purple background (`#e8d5f5`) and purple outline to the recommended choice. The student selects the answer.
 - **Auto mode:** dispatches synthetic pointer and mouse events to the recommended choice. Submission depends on Scaler's event handling; Rin does not confirm that the platform accepted the answer.
@@ -14,7 +14,7 @@ flowchart LR
     DOM[Scaler classroom DOM] --> Content[Content script]
     Content --> Background[Extension background]
     Background --> Worker[Cloudflare Worker]
-    Worker --> AI[OpenRouter Chat Completions]
+    Worker --> AI[DeepSeek Chat Completions]
     AI --> Worker
     Worker --> Background
     Background --> Content
@@ -25,7 +25,7 @@ The content script runs at `document_idle` on Scaler pages, including matching f
 
 Quiz extraction uses Scaler-specific CSS selectors to read question text and labeled options from `div.m-quiz`. It preserves question `<pre>` formatting and keeps option element references for highlighting or clicking. The observer suppresses duplicate emissions with the same quiz element and question text.
 
-The background sends the question, options, and configured model to `https://rin-worker.pujankhunt.me/solve`. The worker requests JSON containing a choice from OpenRouter, matches the returned label to an option, and returns its index, label, model ID, and worker-side solver duration. The default model ID in the source is `deepseek/deepseek-v4-flash`; availability and answer accuracy are not verified by the automated suite. The worker aborts its OpenRouter request after ten seconds, including response-body reading, and returns HTTP 504 on timeout. The extension aborts its worker request after twelve seconds.
+The background sends the question and options to `https://rin-worker.pujankhunt.me/solve`. The worker requests JSON containing a choice from the official DeepSeek API using `deepseek-flash`, matches the returned label to an option, and returns its index, label, model ID, and worker-side solver duration. The worker aborts its DeepSeek request after ten seconds, including response-body reading, and returns HTTP 504 on timeout. The extension aborts its worker request after twelve seconds.
 
 ## Repository layout
 
@@ -44,7 +44,7 @@ packages/
 │   │   └── solver/             # Authenticated worker HTTP client
 │   ├── tests/
 │   └── public/icon/
-├── worker/                     # Cloudflare Worker, OpenRouter client, parser
+├── worker/                     # Cloudflare Worker, DeepSeek client, parser
 │   ├── src/
 │   ├── tests/
 │   └── wrangler.jsonc
@@ -69,13 +69,13 @@ The worker needs two environment secrets:
 
 | Name | Purpose |
 |---|---|
-| `OPENROUTER_API_KEY` | Authenticates the worker's upstream OpenRouter request. |
+| `DEEPSEEK_API_KEY` | Authenticates the worker's upstream DeepSeek API request. |
 | `RIN_CLIENT_KEY` | Compared with the extension's `X-Rin-Client` header. |
 
 For local worker development, create the ignored file `packages/worker/.dev.vars`:
 
 ```ini
-OPENROUTER_API_KEY="your-openrouter-key"
+DEEPSEEK_API_KEY="your-deepseek-key"
 RIN_CLIENT_KEY="your-client-key"
 ```
 
@@ -83,7 +83,7 @@ For a deployed worker, configure secrets from `packages/worker` using the worksp
 
 ```bash
 cd packages/worker
-pnpm exec wrangler secret put OPENROUTER_API_KEY
+pnpm exec wrangler secret put DEEPSEEK_API_KEY
 pnpm exec wrangler secret put RIN_CLIENT_KEY
 ```
 
@@ -93,7 +93,7 @@ Provide the matching client key when starting or building the extension:
 export RIN_CLIENT_KEY="your-client-key"
 ```
 
-WXT also accepts `VITE_RIN_CLIENT_KEY` as a fallback. Build and zip commands reject a missing key. Development does not have that build guard, but `WorkerClient` still throws during initialization without a key. The value is embedded in the extension bundle; it is not a private server credential. The OpenRouter API key belongs only on the worker.
+WXT also accepts `VITE_RIN_CLIENT_KEY` as a fallback. Build and zip commands reject a missing key. Development does not have that build guard, but `WorkerClient` still throws during initialization without a key. The value is embedded in the extension bundle; it is not a private server credential. The DeepSeek API key belongs only on the worker.
 
 ### Extension commands
 
@@ -127,14 +127,13 @@ Deployment uses the `rin-solver` worker and custom domain `rin-worker.pujankhunt
 ## Development-only features
 
 - Recorded-player `.vp-container` detection is available alongside live-class detection.
-- The popup exposes DeepSeek and Gemini model presets and a custom model ID. The background uses the stored model override in development. Production hides the model controls, but still sends the stored model through the quiz workflow.
 - The logger forwards content/popup logs to the extension background console. Normal logger calls return without emitting in production.
 - After a successful workflow action, quiz and application-root HTML snapshots are saved under `rinSnapshots` in local storage. Automatic recording does not download a file.
 - `Alt+Shift+S` or `Ctrl+Alt+S` captures `#root` (or `body`), saves a snapshot, and downloads `rin-manual-snapshot-<timestamp>.html`. Storage failures are swallowed. Storage retains at most 20 newest snapshots and 2 MiB of serialized UTF-8 data, evicting oldest entries first; a snapshot too large to fit is not retained. Manual downloads still occur.
 
 ## Data and authentication
 
-The solver receives question text, option labels/text, and a model ID. DOM element references, raw HTML, and page URLs are not sent in solver requests. The worker sends question text and option labels/text to OpenRouter; the model's response is parsed for its choice, and reasoning is not exposed in the extension response. Development snapshots are retained within the storage limits above; manual captures also download a file.
+The solver receives question text and option labels/text. DOM element references, raw HTML, and page URLs are not sent in solver requests. The worker sends question text and option labels/text to DeepSeek API (`deepseek-flash`); the model's response is parsed for its choice, and reasoning is not exposed in the extension response. Development snapshots are retained within the storage limits above; manual captures also download a file.
 
 The extension requests `storage` permission and host permissions for Scaler and the production worker. The worker requires a valid serialized `Origin`, plus the client key. Accepted origins are `chrome-extension://` with a 32-character ID using letters `a` through `p`, `moz-extension://` with a UUID hostname, and HTTP origins whose hostname is exactly `localhost` or `127.0.0.1` (with an optional port). Lookalike hosts, credentials, paths, queries, fragments, and malformed origins are rejected. This validates extension ID format, not a specific extension ID allowlist. There is no application-level rate limiting.
 

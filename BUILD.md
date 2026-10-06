@@ -91,4 +91,4 @@ pnpm typecheck
 
 Tests provide mocked runtime and network coverage. Type checking runs across all three packages and regenerates WXT types for the extension.
 
-The extension targets `https://rin-worker.pujankhunt.me/solve` in both development and production. A working solver requires `OPENROUTER_API_KEY` and a matching `RIN_CLIENT_KEY` on that worker. See the [README](README.md#credentials) for local worker variables, secret setup, and deployment commands. Extension packaging does not deploy the worker or verify upstream model access.
+The extension targets `https://rin-worker.pujankhunt.me/solve` in both development and production. A working solver requires `DEEPSEEK_API_KEY` and a matching `RIN_CLIENT_KEY` on that worker. See the [README](README.md#credentials) for local worker variables, secret setup, and deployment commands. Extension packaging does not deploy the worker or verify upstream model access.
