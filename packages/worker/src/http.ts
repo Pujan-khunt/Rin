@@ -2,7 +2,7 @@ import type { QuizInput } from '@rin/shared';
 import { CLIENT_HEADER_NAME } from '@rin/shared';
 
 export interface Env {
-  OPENROUTER_API_KEY?: string;
+  DEEPSEEK_API_KEY?: string;
   RIN_CLIENT_KEY?: string;
 }
 
@@ -86,7 +86,7 @@ export function errorResponse(message: string, request?: Request, status = 500):
  * Middleware validating server environment configuration and request client authentication.
  *
  * 1. Strictly requires RIN_CLIENT_KEY in env (returns 500 if missing).
- * 2. Strictly requires OPENROUTER_API_KEY in env (returns 500 if missing).
+ * 2. Strictly requires DEEPSEEK_API_KEY in env (returns 500 if missing).
  * 3. Validates X-Rin-Client header matches RIN_CLIENT_KEY (returns 401 if missing or invalid).
  *
  * Returns an error Response if any check fails, or null if authentication succeeds.
@@ -97,9 +97,9 @@ export function authenticateRequest(request: Request, env: Env): Response | null
     return errorResponse('Server configuration error: RIN_CLIENT_KEY is missing', request, 500);
   }
 
-  const openRouterKey = env.OPENROUTER_API_KEY?.trim();
-  if (!openRouterKey) {
-    return errorResponse('Server configuration error: OPENROUTER_API_KEY is missing', request, 500);
+  const deepseekKey = env.DEEPSEEK_API_KEY?.trim();
+  if (!deepseekKey) {
+    return errorResponse('Server configuration error: DEEPSEEK_API_KEY is missing', request, 500);
   }
 
   const clientHeader = request.headers.get(CLIENT_HEADER_NAME);
@@ -112,7 +112,7 @@ export function authenticateRequest(request: Request, env: Env): Response | null
 
 /**
  * Checks for a nonblank string question and a nonempty options array.
- * Individual options and the optional model are not validated here.
+ * Individual options are not validated here.
  */
 export function validateQuizInput(input: unknown): input is QuizInput {
   if (!input || typeof input !== 'object') return false;

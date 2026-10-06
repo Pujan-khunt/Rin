@@ -2,11 +2,11 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import type { SolveResult } from '@rin/shared';
 import { CLIENT_HEADER_NAME, DEEPSEEK_MODEL_ID } from '@rin/shared';
 import worker, { solve } from '@/index';
-import { OPENROUTER_CHAT_URL, OPENROUTER_TIMEOUT_MS } from '@/constants';
+import { DEEPSEEK_API_URL, DEEPSEEK_TIMEOUT_MS } from '@/constants';
 
 const TEST_CLIENT_KEY = 'test-client-key';
 
-describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
+describe('Cloudflare Worker Edge Proxy (DeepSeek Chat)', () => {
   const authHeaders = {
     'Content-Type': 'application/json',
     [CLIENT_HEADER_NAME]: TEST_CLIENT_KEY,
@@ -14,7 +14,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
   };
 
   const defaultEnv = {
-    OPENROUTER_API_KEY: 'test-key',
+    DEEPSEEK_API_KEY: 'test-key',
     RIN_CLIENT_KEY: TEST_CLIENT_KEY,
   };
 
@@ -54,13 +54,13 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     const pendingResponse = worker.fetch(request, defaultEnv);
     await vi.advanceTimersByTimeAsync(0);
     expect(signal).toBeInstanceOf(AbortSignal);
-    await vi.advanceTimersByTimeAsync(OPENROUTER_TIMEOUT_MS);
+    await vi.advanceTimersByTimeAsync(DEEPSEEK_TIMEOUT_MS);
     const response = await pendingResponse;
 
     expect(signal.aborted).toBe(true);
     expect(response.status).toBe(504);
     expect(response.headers.get('Access-Control-Allow-Origin')).toBe(authHeaders.Origin);
-    expect(await response.json()).toEqual({ error: 'OpenRouter request timed out after 10000ms' });
+    expect(await response.json()).toEqual({ error: 'DeepSeek request timed out after 10000ms' });
   });
 
   it('handles CORS OPTIONS preflight from extension origin', async () => {
@@ -156,13 +156,13 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
       }),
     });
 
-    const response = await worker.fetch(request, { OPENROUTER_API_KEY: 'test-key' });
+    const response = await worker.fetch(request, { DEEPSEEK_API_KEY: 'test-key' });
     expect(response.status).toBe(500);
     const data = (await response.json()) as { error: string };
     expect(data.error).toContain('RIN_CLIENT_KEY is missing');
   });
 
-  it('rejects request with 500 when OPENROUTER_API_KEY is missing from worker env', async () => {
+  it('rejects request with 500 when DEEPSEEK_API_KEY is missing from worker env', async () => {
     const request = new Request('http://localhost:8787/solve', {
       method: 'POST',
       headers: authHeaders,
@@ -175,7 +175,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     const response = await worker.fetch(request, { RIN_CLIENT_KEY: TEST_CLIENT_KEY });
     expect(response.status).toBe(500);
     const data = (await response.json()) as { error: string };
-    expect(data.error).toContain('OPENROUTER_API_KEY is missing');
+    expect(data.error).toContain('DEEPSEEK_API_KEY is missing');
   });
 
   it('rejects request missing X-Rin-Client header with 401', async () => {
@@ -233,7 +233,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     });
 
     const response = await worker.fetch(request, {
-      OPENROUTER_API_KEY: 'test-key',
+      DEEPSEEK_API_KEY: 'test-key',
       RIN_CLIENT_KEY: 'my-production-secret',
     });
     expect(response.status).toBe(200);
@@ -256,7 +256,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     });
 
     const response = await worker.fetch(request, {
-      OPENROUTER_API_KEY: 'sk-or-v1-test',
+      DEEPSEEK_API_KEY: 'sk-deepseek-test',
       RIN_CLIENT_KEY: TEST_CLIENT_KEY,
     });
     expect(response.status).toBe(200);
@@ -265,11 +265,11 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     );
 
     expect(global.fetch).toHaveBeenCalledWith(
-      OPENROUTER_CHAT_URL,
+      DEEPSEEK_API_URL,
       expect.objectContaining({
         method: 'POST',
         headers: expect.objectContaining({
-          Authorization: 'Bearer sk-or-v1-test',
+          Authorization: 'Bearer sk-deepseek-test',
         }),
         body: expect.stringContaining(`"model":"${DEEPSEEK_MODEL_ID}"`),
       })
@@ -301,58 +301,6 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     expect(response.status).toBe(405);
   });
 
-  it('dispatches to OpenRouter Chat Completions when an explicit model is specified', async () => {
-    global.fetch = vi.fn().mockResolvedValue({
-      ok: true,
-      json: async () => ({
-        id: 'gen-chat-12345',
-        choices: [
-          {
-            message: {
-              content: '{"choice": "B"}',
-            },
-          },
-        ],
-      }),
-    });
-
-    const request = new Request('http://localhost:8787/solve', {
-      method: 'POST',
-      headers: authHeaders,
-      body: JSON.stringify({
-        question: 'What is alignof(double) on x86_64?',
-        options: [
-          { label: 'A', text: '4' },
-          { label: 'B', text: '8' },
-        ],
-        model: 'google/gemini-2.5-flash',
-      }),
-    });
-
-    const response = await worker.fetch(request, {
-      OPENROUTER_API_KEY: 'sk-or-v1-test',
-      RIN_CLIENT_KEY: TEST_CLIENT_KEY,
-    });
-    expect(response.status).toBe(200);
-
-    expect(global.fetch).toHaveBeenCalledWith(
-      OPENROUTER_CHAT_URL,
-      expect.objectContaining({
-        method: 'POST',
-        headers: expect.objectContaining({
-          Authorization: 'Bearer sk-or-v1-test',
-          'Content-Type': 'application/json',
-        }),
-        body: expect.stringContaining('"model":"google/gemini-2.5-flash"'),
-      })
-    );
-
-    const data = (await response.json()) as SolveResult;
-    expect(data.chosenIndex).toBe(1);
-    expect(data.chosenLabel).toBe('B');
-    expect(data.source).toBe('google/gemini-2.5-flash');
-  });
-
   it('parses markdown code block wrapped JSON from chat model', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
@@ -376,7 +324,6 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
           { label: 'A', text: 'Option A' },
           { label: 'B', text: 'Option B' },
         ],
-        model: 'openai/gpt-4o-mini',
       }),
     });
 
@@ -385,7 +332,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     const data = (await response.json()) as SolveResult;
     expect(data.chosenIndex).toBe(0);
     expect(data.chosenLabel).toBe('A');
-    expect(data.source).toBe('openai/gpt-4o-mini');
+    expect(data.source).toBe(DEEPSEEK_MODEL_ID);
   });
 
   it('handles upstream chat API error with 500', async () => {
@@ -406,7 +353,7 @@ describe('Cloudflare Worker Edge Proxy (OpenRouter Chat)', () => {
     const response = await worker.fetch(request, defaultEnv);
     expect(response.status).toBe(500);
     const data = (await response.json()) as { error: string };
-    expect(data.error).toContain('OpenRouter Chat API error: 502');
+    expect(data.error).toContain('DeepSeek API error: 502');
   });
 
   it('solves quiz with custom injected InferenceClient without network fetch', async () => {

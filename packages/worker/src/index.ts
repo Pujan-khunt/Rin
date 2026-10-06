@@ -1,8 +1,8 @@
 import type { QuizInput, SolveResult } from '@rin/shared';
-import { DEFAULT_MODEL_ID } from '@rin/shared';
+import { DEEPSEEK_MODEL_ID } from '@rin/shared';
 import { buildChatPayload, type ChatCompletionPayload } from '@/prompt';
 import { parseQuizChoice, type ParsedQuizChoice } from '@/parser';
-import { OpenRouterClient, OpenRouterTimeoutError, type InferenceClient } from '@/client';
+import { DeepSeekClient, DeepSeekTimeoutError, type InferenceClient } from '@/client';
 import {
   handleOptions,
   jsonResponse,
@@ -15,7 +15,7 @@ import {
 
 export type { Env };
 
-const defaultClient = new OpenRouterClient();
+const defaultClient = new DeepSeekClient();
 
 /**
  * Coordinates worker-side quiz solving:
@@ -29,17 +29,16 @@ export async function solve(
   apiKey: string,
   client: InferenceClient = defaultClient
 ): Promise<SolveResult> {
-  const model = quiz.model?.trim() || DEFAULT_MODEL_ID;
   const start = performance.now();
 
-  const payload: ChatCompletionPayload = buildChatPayload(quiz, model);
+  const payload: ChatCompletionPayload = buildChatPayload(quiz);
   const rawContent: string = await client.complete(payload, apiKey);
   const choice: ParsedQuizChoice = parseQuizChoice(rawContent, quiz.options);
 
   return {
     chosenIndex: choice.chosenIndex,
     chosenLabel: choice.chosenLabel,
-    source: model,
+    source: DEEPSEEK_MODEL_ID,
     latencyMs: Math.round(performance.now() - start),
   };
 }
@@ -74,13 +73,13 @@ export default {
         return errorResponse('Invalid QuizInput payload', request, 400);
       }
 
-      const apiKey = env.OPENROUTER_API_KEY as string;
+      const apiKey = env.DEEPSEEK_API_KEY as string;
       const result = await solve(input, apiKey);
 
       return jsonResponse(result, request);
     } catch (err: unknown) {
       const message = err instanceof Error ? err.message : 'Internal solver error';
-      return errorResponse(message, request, err instanceof OpenRouterTimeoutError ? 504 : 500);
+      return errorResponse(message, request, err instanceof DeepSeekTimeoutError ? 504 : 500);
     }
   },
 };
