@@ -34,7 +34,7 @@ export class HudActor implements Actor {
     this.cleanup();
 
     const target = payload.quiz.options[payload.result.chosenIndex]?.element;
-    if (!target) {
+    if (!target?.isConnected) {
       logger.warn(
         'HudActor',
         `Target option element at index ${payload.result.chosenIndex} (${payload.result.chosenLabel}) not found in DOM`

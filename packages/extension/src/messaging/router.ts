@@ -21,22 +21,28 @@ export class MessageRouter {
         const handler = message?.type ? this.handlers.get(message.type) : undefined;
         if (!handler) return false;
 
-        const payload = 'payload' in message ? message.payload : undefined;
-        Promise.resolve()
-          .then(() => handler(payload))
-          .then(sendResponse)
-          .catch((err) => {
-            logger.error(
-              'MessageRouter',
-              `Error handling message ${message.type}: ${(err as Error)?.message ?? err}`
-            );
-            sendResponse({
-              type: 'ERROR',
-              payload: { message: (err as Error)?.message ?? String(err) },
-            });
-          });
+        void this.dispatch(handler, message, sendResponse);
         return true;
       }
     );
+  }
+
+  private async dispatch(
+    handler: MessageHandler,
+    message: ContentMessage,
+    sendResponse: (res: BackgroundResponse) => void
+  ): Promise<void> {
+    try {
+      const payload = 'payload' in message ? message.payload : undefined;
+      const response = await handler(payload);
+      sendResponse(response);
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      logger.error('MessageRouter', `Error handling message ${message.type}: ${errorMessage}`);
+      sendResponse({
+        type: 'ERROR',
+        payload: { message: errorMessage },
+      });
+    }
   }
 }

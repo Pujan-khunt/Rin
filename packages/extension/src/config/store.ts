@@ -19,13 +19,12 @@ export class ConfigStore {
    */
   async load(): Promise<RinConfig> {
     try {
-      if (typeof browser === 'undefined' || !browser?.storage?.local) {
-        throw new Error('browser.storage.local is unavailable');
-      }
-      const stored = await browser.storage.local.get('rinConfig');
+      const { rinConfig } = (await browser.storage.local.get('rinConfig')) as {
+        rinConfig?: Partial<RinConfig>;
+      };
       this.cachedConfig = {
         ...DEFAULT_CONFIG,
-        ...((stored as { rinConfig?: Partial<RinConfig> })?.rinConfig || {}),
+        ...rinConfig,
       };
       logger.debug('ConfigStore', 'Loaded configuration from storage', this.cachedConfig);
     } catch (err) {
@@ -43,9 +42,6 @@ export class ConfigStore {
    */
   async save(newConfig: RinConfig): Promise<void> {
     try {
-      if (typeof browser === 'undefined' || !browser?.storage?.local) {
-        throw new Error('browser.storage.local is unavailable');
-      }
       await browser.storage.local.set({ rinConfig: newConfig });
       // Replace the cache only after storage confirms the write.
       this.cachedConfig = { ...newConfig };
@@ -68,16 +64,12 @@ export class ConfigStore {
    * Returns an unsubscribe function to cleanly detach the listener.
    */
   subscribe(listener: ConfigChangeListener): () => void {
-    if (typeof browser === 'undefined' || !browser?.storage?.onChanged) {
-      return () => {};
-    }
-
     const handler = (changes: Record<string, { newValue?: any }>, area: string) => {
       if (area === 'local' && changes.rinConfig) {
         const oldConfig = this.cachedConfig;
         this.cachedConfig = {
           ...DEFAULT_CONFIG,
-          ...(changes.rinConfig.newValue || {}),
+          ...(changes.rinConfig.newValue as Partial<RinConfig>),
         };
         listener(this.cachedConfig, oldConfig);
       }

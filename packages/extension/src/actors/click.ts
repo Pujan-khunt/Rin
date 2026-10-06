@@ -30,7 +30,7 @@ export class ClickActor implements Actor {
    */
   async act(payload: ActPayload): Promise<void> {
     const target = payload.quiz.options[payload.result.chosenIndex]?.element;
-    if (!target) {
+    if (!target?.isConnected) {
       logger.warn(
         'ClickActor',
         `Target option element at index ${payload.result.chosenIndex} (${payload.result.chosenLabel}) not found in DOM`
@@ -51,5 +51,5 @@ export class ClickActor implements Actor {
    * ClickActor only dispatches transient DOM events and does not modify persistent
    * element styles or add persistent DOM nodes, so cleanup is a no-op.
    */
-  cleanup(): void {}
+  cleanup(): void { }
 }

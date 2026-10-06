@@ -144,16 +144,11 @@ describe('Background Entrypoint', () => {
     expect(sendResponse).not.toHaveBeenCalled();
   });
 
-  it('overrides payload model with config.model in DEV mode', async () => {
-    vi.spyOn(configStore, 'load').mockResolvedValue({
-      actorMode: 'auto',
-      enabled: true,
-      model: 'gemini-1.5-pro',
-    });
+  it('dispatches SOLVE_QUIZ payload directly to solver', async () => {
     const solveSpy = vi.spyOn(WorkerClient.prototype, 'solve').mockResolvedValue({
       chosenIndex: 0,
       chosenLabel: 'A',
-      source: 'llm',
+      source: 'deepseek-flash',
       latencyMs: 50,
     });
 
@@ -163,18 +158,17 @@ describe('Background Entrypoint', () => {
     messageListener(
       {
         type: 'SOLVE_QUIZ',
-        payload: { question: 'Q', options: ['A'], model: 'payload-model' },
+        payload: { question: 'Q', options: [{ label: 'A', text: 'Answer' }] },
       },
       {},
       sendResponse
     );
 
     await vi.waitFor(() => {
-      expect(solveSpy).toHaveBeenCalledWith(
-        expect.objectContaining({
-          model: 'gemini-1.5-pro',
-        })
-      );
+      expect(solveSpy).toHaveBeenCalledWith({
+        question: 'Q',
+        options: [{ label: 'A', text: 'Answer' }],
+      });
     });
   });
 });
@@ -260,7 +254,7 @@ describe('Drona Content Script Entrypoint', () => {
       expect(actSpy).toHaveBeenCalledTimes(answered ? 0 : 1);
     });
 
-    onConfigChange({ ...enabledConfig, model: 'custom-model' }, enabledConfig);
+    onConfigChange({ ...enabledConfig }, enabledConfig);
     container.appendChild(document.createElement('span'));
     await new Promise((resolve) => setTimeout(resolve, 10));
     expect(solveSpy).toHaveBeenCalledTimes(answered ? 0 : 1);
@@ -352,7 +346,6 @@ describe('Drona Content Script Entrypoint', () => {
           { label: 'A', text: 'Option A' },
           { label: 'B', text: 'Option B' },
         ],
-        model: undefined,
       },
     });
     expect(actSpy).toHaveBeenCalledWith({
@@ -526,7 +519,7 @@ describe('Drona Content Script Entrypoint', () => {
     storageListener(
       {
         rinConfig: {
-          newValue: { actorMode: 'assisted', enabled: true, model: 'custom-model' },
+          newValue: { actorMode: 'assisted', enabled: false },
         },
       },
       'local'

@@ -58,7 +58,7 @@ describe('QuizObserver', () => {
     const emittedQuiz = (callbacks.onQuiz as any).mock.calls[0][0] as QuizData;
     expect(emittedQuiz.question).toBe('What is capital of France?');
     expect(emittedQuiz.options).toHaveLength(2);
-    expect(emittedQuiz.options[0].text).toBe('Paris');
+    expect(emittedQuiz.options[0]!.text).toBe('Paris');
   });
 
   it('emits fast-path quiz and continues observing so subsequent quizzes are also emitted', async () => {
@@ -114,7 +114,7 @@ describe('QuizObserver', () => {
     const emittedQuiz = (callbacks.onQuiz as any).mock.calls[0][0] as QuizData;
     expect(emittedQuiz.question).toBe('Solve for x: x = 10 * 5');
     expect(emittedQuiz.options).toHaveLength(2);
-    expect(emittedQuiz.options[1].text).toBe('50');
+    expect(emittedQuiz.options[1]!.text).toBe('50');
   });
 
   it('does not re-emit duplicate onQuiz calls for subsequent DOM mutations of the same quiz', async () => {

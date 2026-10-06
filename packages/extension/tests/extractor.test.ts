@@ -23,7 +23,7 @@ describe('Quiz Extractor', () => {
     try {
       const quiz = extractQuiz(root);
       expect(quiz?.question).toBe('Question');
-      expect(quiz?.options[0].text).toBe('Answer');
+      expect(quiz?.options[0]?.text).toBe('Answer');
       expect(quiz?.rawHtml).toBeUndefined();
       expect(serialize).not.toHaveBeenCalled();
     } finally {
@@ -191,7 +191,7 @@ describe('Quiz Extractor', () => {
         index: 3,
         element: choiceNodes[3],
       });
-      expect(data!.options[0].element).toBe(choiceNodes[0]);
+      expect(data!.options[0]!.element).toBe(choiceNodes[0]);
     });
 
     it('extracts a True/False 2-option quiz', () => {
@@ -245,12 +245,12 @@ describe('Quiz Extractor', () => {
       expect(data).not.toBeNull();
       expect(data!.question).toContain('What is the alignment of this struct ?');
       expect(data!.options).toHaveLength(3);
-      expect(data!.options[0].text).toBe('8');
-      expect(data!.options[0].element).toBe(choiceNodes[0]);
-      expect(data!.options[1].text).toBe('16');
-      expect(data!.options[1].element).toBe(choiceNodes[1]);
-      expect(data!.options[2].text).toBe('4');
-      expect(data!.options[2].element).toBe(choiceNodes[2]);
+      expect(data!.options[0]!.text).toBe('8');
+      expect(data!.options[0]!.element).toBe(choiceNodes[0]);
+      expect(data!.options[1]!.text).toBe('16');
+      expect(data!.options[1]!.element).toBe(choiceNodes[1]);
+      expect(data!.options[2]!.text).toBe('4');
+      expect(data!.options[2]!.element).toBe(choiceNodes[2]);
     });
 
     it('returns null if given element is not a quiz', () => {
@@ -322,8 +322,8 @@ print(x * 2)</code></pre>
       expect(data!.question).toContain('x = [1, 2, 3]\nprint(x * 2)');
       expect(data!.question).toContain('Select the correct answer:');
       expect(data!.options).toHaveLength(2);
-      expect(data!.options[0].element).toBe(choiceNodes[0]);
-      expect(data!.options[1].element).toBe(choiceNodes[1]);
+      expect(data!.options[0]!.element).toBe(choiceNodes[0]);
+      expect(data!.options[1]!.element).toBe(choiceNodes[1]);
     });
 
     it('sets alreadyAnswered to false when no choice is selected', () => {

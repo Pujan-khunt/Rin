@@ -219,7 +219,7 @@ describe('Dev-Only DOM Snapshot Recorder', () => {
     window.dispatchEvent(altShiftSEvent);
     expect(preventDefaultSpy).toHaveBeenCalled();
     await vi.waitFor(() => expect(onCapture).toHaveBeenCalledTimes(1));
-    expect(onCapture.mock.calls[0][0].trigger).toBe('manual_hotkey');
+    expect(onCapture.mock.calls[0]![0].trigger).toBe('manual_hotkey');
 
     // Pressing Ctrl+Alt+S also triggers capture
     const ctrlAltSEvent = new KeyboardEvent('keydown', {

@@ -1,5 +1,16 @@
 import type { LogLevel, LogPayload } from '@/messaging/types';
 
+const LEVEL_COLORS: Record<LogLevel, string> = {
+  debug: 'color: #9e9e9e',
+  info: 'color: #00bcd4; font-weight: bold',
+  warn: 'color: #ff9800; font-weight: bold',
+  error: 'color: #f44336; font-weight: bold',
+};
+
+const TIME_STYLE = 'color: #757575';
+const TAG_STYLE = 'color: #9c27b0; font-weight: bold';
+const RESET_STYLE = 'color: inherit';
+
 /**
  * Formats a Unix timestamp into human-readable HH:mm:ss.SSS format.
  */
@@ -10,68 +21,46 @@ export function formatTimestamp(timestamp: number): string {
 }
 
 /**
- * Checks if the current execution context is the background worker/page.
+ * Checks if the current execution context is the background service worker or page.
  */
 export function isBackgroundContext(): boolean {
-  if (typeof (globalThis as Record<string, unknown>).ServiceWorkerGlobalScope !== 'undefined') return true;
-  if (typeof location !== 'undefined' && location.pathname.includes('background')) return true;
-  return false;
+  return (
+    'ServiceWorkerGlobalScope' in globalThis ||
+    (typeof location !== 'undefined' && location.pathname.includes('background'))
+  );
 }
 
 /**
- * Human-readable pretty-printer for the background service worker console.
- * Uses DevTools styling with distinct badges, timestamps, and component tags.
+ * Formats and outputs structured log entries in the background service worker console.
  */
 export function prettyPrintLog(payload: LogPayload, forceBrowserStyle?: boolean): void {
-  const { level, tag, message, timestamp } = payload;
-  const data = payload.data;
+  const { level, tag, message, timestamp, data } = payload;
   const timeStr = formatTimestamp(timestamp);
+  const isStyled = forceBrowserStyle ?? (typeof window !== 'undefined' || typeof navigator !== 'undefined');
 
-  const isBrowser =
-    forceBrowserStyle ??
-    (typeof window !== 'undefined' ||
-      (typeof navigator !== 'undefined' && /Chrome|Firefox|Safari/.test(navigator.userAgent)));
+  const args: unknown[] = isStyled
+    ? [
+        `%c[${timeStr}] %c[${level.toUpperCase()}]%c [${tag}]%c ${message}`,
+        TIME_STYLE,
+        LEVEL_COLORS[level],
+        TAG_STYLE,
+        RESET_STYLE,
+      ]
+    : [`[${timeStr}] [${level.toUpperCase()}] [${tag}] ${message}`];
 
-  if (isBrowser) {
-    const levelColors: Record<LogLevel, string> = {
-      debug: 'color: #9e9e9e',
-      info: 'color: #00bcd4; font-weight: bold',
-      warn: 'color: #ff9800; font-weight: bold',
-      error: 'color: #f44336; font-weight: bold',
-    };
-    const timeStyle = 'color: #757575';
-    const tagStyle = 'color: #9c27b0; font-weight: bold';
-    const resetStyle = 'color: inherit';
-
-    const format = `%c[${timeStr}] %c[${level.toUpperCase()}]%c [${tag}]%c ${message}`;
-    const consoleMethod = console[level] ?? console.log;
-
-    if (data !== undefined) {
-      consoleMethod(format, timeStyle, levelColors[level], tagStyle, resetStyle, data);
-    } else {
-      consoleMethod(format, timeStyle, levelColors[level], tagStyle, resetStyle);
-    }
-  } else {
-    const header = `[${timeStr}] [${level.toUpperCase()}] [${tag}] ${message}`;
-    const consoleMethod = console[level] ?? console.log;
-    if (data !== undefined) {
-      consoleMethod(header, data);
-    } else {
-      consoleMethod(header);
-    }
+  if (data !== undefined) {
+    args.push(data);
   }
+
+  const consoleMethod = console[level] ?? console.log;
+  consoleMethod(...args);
 }
 
 /**
  * Dispatches a structured log entry.
- *
- * In DEV mode:
- * - If in background service worker, pretty-prints directly to background console.
- * - If in content script or popup, proxies via browser.runtime.sendMessage to background worker.
- *
- * In PROD mode:
- * - Returns without printing or forwarding a log. Call-site arguments may still
- *   be evaluated; prettyPrintLog remains callable by the background LOG route.
+ * - In background worker: pretty-prints directly to console.
+ * - In content script or popup: proxies via browser.runtime.sendMessage to background worker.
+ * - In production mode: no-op.
  */
 function dispatch(level: LogLevel, tag: string, message: string, data?: unknown): void {
   if (!import.meta.env.DEV) return;
@@ -89,18 +78,10 @@ function dispatch(level: LogLevel, tag: string, message: string, data?: unknown)
     return;
   }
 
-  // Content script or extension UI: proxy to background worker
   try {
-    if (typeof browser !== 'undefined' && browser.runtime?.sendMessage) {
-      browser.runtime
-        .sendMessage({
-          type: 'LOG',
-          payload,
-        })
-        .catch(() => {
-          // Graceful silence: ignore when worker is sleeping, invalid, or re-arming
-        });
-    }
+    browser.runtime.sendMessage({ type: 'LOG', payload }).catch(() => {
+      // Graceful silence: ignore when worker is sleeping, invalid, or re-arming
+    });
   } catch {
     // Graceful silence: logging must never crash content script or application flow
   }

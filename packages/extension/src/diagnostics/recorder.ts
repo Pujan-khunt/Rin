@@ -19,9 +19,6 @@ export const MAX_SNAPSHOT_BYTES = 2 * 1024 * 1024;
  * Falls back to document.body if #root is not mounted.
  */
 export function captureRootHtml(): string {
-  if (typeof document === 'undefined') {
-    return '';
-  }
   const rootEl = document.getElementById('root');
   if (rootEl) {
     return rootEl.outerHTML;
@@ -50,14 +47,6 @@ export function formatDownloadableHtml(bodyContent: string, title: string = 'Rin
  * Non-destructive and requires no extra browser permissions.
  */
 export function triggerSnapshotDownload(html: string, filename: string): void {
-  if (
-    typeof document === 'undefined' ||
-    typeof Blob === 'undefined' ||
-    typeof URL === 'undefined' ||
-    typeof URL.createObjectURL !== 'function'
-  ) {
-    return;
-  }
   try {
     const blob = new Blob([html], { type: 'text/html;charset=utf-8' });
     const url = URL.createObjectURL(blob);

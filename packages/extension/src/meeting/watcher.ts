@@ -9,7 +9,7 @@ import type { MeetingCallbacks } from '@/meeting/types';
  * Implements symmetrical lifecycle observation for classroom meetings:
  * - Fast-paths .m-activity, plus .vp-container in development.
  * - Reactively observes root element (#root / body) for container insertion.
- * - Watches the immediate parent for removal (recursive only for body).
+ * - Watches root container for detachment of the meeting or its ancestors.
  * - Automatically self-rearms upon unmount for seamless subsequent sessions.
  */
 export class MeetingWatcher {
@@ -37,10 +37,6 @@ export class MeetingWatcher {
     this.isStopped = false;
     this.cleanupObservers();
 
-    if (typeof document === 'undefined') {
-      return;
-    }
-
     // Fast-path: Check for a container using the environment's selectors.
     const existing = document.querySelector<HTMLElement>(SELECTORS.meeting.container);
     if (existing) {
@@ -51,8 +47,7 @@ export class MeetingWatcher {
 
     // Reactive path: Observe root element (#root or document.body)
     const root =
-      document.querySelector<HTMLElement>(SELECTORS.app.root) ??
-      (typeof document !== 'undefined' ? document.body : null);
+      document.querySelector<HTMLElement>(SELECTORS.app.root) ?? document.body;
 
     if (!root) {
       logger.warn('MeetingWatcher', 'Root element (#root or body) not found, unable to watch for meeting');
@@ -82,7 +77,7 @@ export class MeetingWatcher {
 
   /**
    * Handles container entry: stores container reference, notifies callbacks,
-   * and attaches a shallow observer to parent to watch for unmount.
+   * and attaches an unmount observer to root to watch for container detachment.
    */
   private handleEnter(container: HTMLElement): void {
     if (this.isStopped) return;
@@ -102,15 +97,18 @@ export class MeetingWatcher {
       this.unmountObserver = null;
     }
 
-    const parent = container.parentElement ?? (typeof document !== 'undefined' ? document.body : null);
-    if (!parent) {
+    const root =
+      document.querySelector<HTMLElement>(SELECTORS.app.root) ??
+      container.parentElement ??
+      document.body;
+    if (!root) {
       if (!container.isConnected) {
         this.handleLeave();
       }
       return;
     }
 
-    logger.debug('MeetingWatcher', 'Attaching unmount MutationObserver to meeting container parent');
+    logger.debug('MeetingWatcher', 'Attaching unmount MutationObserver to root container');
     this.unmountObserver = new MutationObserver((mutations) => {
       for (const mutation of mutations) {
         for (const node of mutation.removedNodes) {
@@ -125,10 +123,9 @@ export class MeetingWatcher {
       }
     });
 
-    const isBody = typeof document !== 'undefined' && parent === document.body;
-    this.unmountObserver.observe(parent, {
+    this.unmountObserver.observe(root, {
       childList: true,
-      subtree: isBody,
+      subtree: true,
     });
   }
 

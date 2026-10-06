@@ -118,6 +118,44 @@ describe('MeetingWatcher', () => {
     expect(watcher.getContainer()).toBe(activity2);
   });
 
+  it('detects unmount when an ancestor of the container is removed from #root', async () => {
+    const root = document.getElementById('root')!;
+    const modal = document.createElement('div');
+    modal.className = 'me-cr-lecture-modal';
+    const activity = document.createElement('div');
+    activity.className = 'm-activity';
+    modal.appendChild(activity);
+    root.appendChild(modal);
+
+    const watcher = new MeetingWatcher(callbacks);
+    watcher.start();
+
+    expect(callbacks.onEnter).toHaveBeenCalledWith(activity);
+    expect(watcher.getContainer()).toBe(activity);
+
+    // Remove ancestor modal from #root
+    modal.remove();
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(callbacks.onLeave).toHaveBeenCalledTimes(1);
+    expect(watcher.getContainer()).toBeNull();
+
+    // Verify self-rearming: subsequent meeting mounts in new modal
+    const newModal = document.createElement('div');
+    newModal.className = 'me-cr-lecture-modal';
+    const newActivity = document.createElement('div');
+    newActivity.className = 'm-activity';
+    newModal.appendChild(newActivity);
+    root.appendChild(newModal);
+
+    await new Promise((resolve) => setTimeout(resolve, 10));
+
+    expect(callbacks.onEnter).toHaveBeenCalledTimes(2);
+    expect(callbacks.onEnter).toHaveBeenLastCalledWith(newActivity);
+    expect(watcher.getContainer()).toBe(newActivity);
+  });
+
   it('cleanly stops and disconnects all observers without firing onLeave', async () => {
     const root = document.getElementById('root')!;
     const activity = document.createElement('div');

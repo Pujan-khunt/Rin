@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { ConfigStore, configStore } from '@/config/store';
 import { DEFAULT_CONFIG } from '@/config/defaults';
-import { DEFAULT_MODEL_ID } from '@rin/shared';
 import { SELECTORS } from '@/dom/selectors';
 
 describe('ConfigStore', () => {
@@ -48,12 +47,10 @@ describe('ConfigStore', () => {
       const customStore = new ConfigStore({
         enabled: false,
         actorMode: 'auto',
-        model: 'custom-model',
       });
       expect(customStore.get()).toEqual({
         enabled: false,
         actorMode: 'auto',
-        model: 'custom-model',
       });
     });
   });
@@ -83,28 +80,18 @@ describe('ConfigStore', () => {
       mockStorage['rinConfig'] = {
         enabled: false,
         actorMode: 'auto',
-        model: 'custom/model-v1',
       };
       const config = await store.load();
 
       expect(config).toEqual({
         enabled: false,
         actorMode: 'auto',
-        model: 'custom/model-v1',
       });
       expect(store.get()).toEqual(config);
     });
 
     it('falls back gracefully to DEFAULT_CONFIG on storage read failure', async () => {
       (global as any).browser.storage.local.get = vi.fn().mockRejectedValue(new Error('Storage failure'));
-
-      const config = await store.load();
-      expect(config).toEqual(DEFAULT_CONFIG);
-      expect(store.get()).toEqual(DEFAULT_CONFIG);
-    });
-
-    it('handles environment where browser is undefined', async () => {
-      delete (global as any).browser;
 
       const config = await store.load();
       expect(config).toEqual(DEFAULT_CONFIG);
@@ -117,7 +104,6 @@ describe('ConfigStore', () => {
       const newConfig = {
         enabled: false,
         actorMode: 'auto' as const,
-        model: 'test/model',
       };
 
       await store.save(newConfig);
@@ -138,7 +124,6 @@ describe('ConfigStore', () => {
       const failingConfig = {
         enabled: false,
         actorMode: 'auto' as const,
-        model: 'failing/model',
       };
 
       await expect(store.save(failingConfig)).rejects.toThrow('Disk write error: quota exceeded');
@@ -147,18 +132,6 @@ describe('ConfigStore', () => {
       expect(store.get()).toEqual(initialConfig);
       expect(store.get().enabled).toBe(initialConfig.enabled);
       expect(store.get().actorMode).toBe(initialConfig.actorMode);
-    });
-
-    it('rejects when browser is undefined', async () => {
-      delete (global as any).browser;
-
-      await expect(
-        store.save({
-          enabled: false,
-          actorMode: 'auto',
-          model: DEFAULT_MODEL_ID,
-        })
-      ).rejects.toThrow('browser.storage.local is unavailable');
     });
   });
 
@@ -242,16 +215,6 @@ describe('ConfigStore', () => {
 
       expect(listener).not.toHaveBeenCalled();
       expect(store.get()).toEqual(DEFAULT_CONFIG);
-    });
-
-    it('returns a no-op function when browser is undefined', () => {
-      delete (global as any).browser;
-
-      const listener = vi.fn();
-      const unsubscribe = store.subscribe(listener);
-
-      expect(typeof unsubscribe).toBe('function');
-      expect(() => unsubscribe()).not.toThrow();
     });
   });
 

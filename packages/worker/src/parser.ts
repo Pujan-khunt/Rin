@@ -36,8 +36,9 @@ export function parseQuizChoice(rawContent: string, options: QuizChoice[]): Pars
 
   const choiceLabel = answer.choice.trim().toUpperCase();
   const chosenIndex = options.findIndex((o) => o.label.toUpperCase() === choiceLabel);
+  const chosenOption = options[chosenIndex];
 
-  if (chosenIndex === -1) {
+  if (!chosenOption) {
     const available = options.map((o) => o.label).join(', ');
     throw new Error(
       `Model selected unknown choice "${answer.choice}". Available options: [${available}]`
@@ -46,6 +47,6 @@ export function parseQuizChoice(rawContent: string, options: QuizChoice[]): Pars
 
   return {
     chosenIndex,
-    chosenLabel: options[chosenIndex].label,
+    chosenLabel: chosenOption.label,
   };
 }
