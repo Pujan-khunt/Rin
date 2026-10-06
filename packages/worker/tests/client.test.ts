@@ -102,4 +102,58 @@ describe('DeepSeek request timeout and client', () => {
     await expect(new DeepSeekClient().complete(payload, 'test-key')).rejects.toBe(error);
     expect(vi.getTimerCount()).toBe(0);
   });
+
+  it('throws and logs INFERENCE_EMPTY_CONTENT when content is empty even if reasoning exists', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [
+          {
+            message: {
+              content: '',
+              reasoning_content: 'We need answer multiple choice. Need think.',
+            },
+            finish_reason: 'length',
+          },
+        ],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      new DeepSeekClient().complete(payload, 'test-key', 'req-empty-reasoning')
+    ).rejects.toThrow('DeepSeek returned empty content (finish_reason: length)');
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('INFERENCE_EMPTY_CONTENT'));
+  });
+
+  it('throws and logs INFERENCE_EMPTY_CONTENT when content is whitespace only', async () => {
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const fetchMock = vi.fn().mockResolvedValue({
+      ok: true,
+      json: async () => ({
+        choices: [{ message: { content: '   ' }, finish_reason: 'stop' }],
+      }),
+    });
+    vi.stubGlobal('fetch', fetchMock);
+
+    await expect(
+      new DeepSeekClient().complete(payload, 'test-key', 'req-whitespace')
+    ).rejects.toThrow('DeepSeek returned empty content (finish_reason: stop)');
+    expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('INFERENCE_EMPTY_CONTENT'));
+  });
+
+  it('buildChatPayload disables thinking mode and configures json_object format', () => {
+    const chatPayload = buildChatPayload({
+      question: 'Sample question?',
+      options: [
+        { label: 'A', text: 'Opt 1' },
+        { label: 'B', text: 'Opt 2' },
+      ],
+    });
+
+    expect(chatPayload.thinking).toEqual({ type: 'disabled' });
+    expect(chatPayload.response_format).toEqual({ type: 'json_object' });
+    expect(chatPayload.max_tokens).toBe(1024);
+  });
 });

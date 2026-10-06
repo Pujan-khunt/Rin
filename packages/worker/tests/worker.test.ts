@@ -19,6 +19,9 @@ describe('Cloudflare Worker Edge Proxy (DeepSeek Chat)', () => {
   };
 
   beforeEach(() => {
+    vi.spyOn(console, 'log').mockImplementation(() => {});
+    vi.spyOn(console, 'warn').mockImplementation(() => {});
+    vi.spyOn(console, 'error').mockImplementation(() => {});
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,
       json: async () => ({
@@ -34,7 +37,10 @@ describe('Cloudflare Worker Edge Proxy (DeepSeek Chat)', () => {
     });
   });
 
-  afterEach(() => vi.useRealTimers());
+  afterEach(() => {
+    vi.restoreAllMocks();
+    vi.useRealTimers();
+  });
 
   it('returns a CORS-enabled 504 when the upstream request times out', async () => {
     vi.useFakeTimers();
@@ -377,5 +383,44 @@ describe('Cloudflare Worker Edge Proxy (DeepSeek Chat)', () => {
     expect(result.chosenLabel).toBe('A');
     expect(result.source).toBe(DEEPSEEK_MODEL_ID);
     expect(mockClient.complete).toHaveBeenCalled();
+  });
+
+  it('emits structured lifecycle logs throughout successful request handling', async () => {
+    const logSpy = vi.spyOn(console, 'log');
+    const request = new Request('https://rin-worker.pujankhunt.me/solve', {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+        'cf-ray': 'ray-test-lifecycle',
+      },
+      body: JSON.stringify({
+        question: 'What is 1+1?',
+        options: [
+          { label: 'A', text: '1' },
+          { label: 'B', text: '2' },
+        ],
+      }),
+    });
+
+    const response = await worker.fetch(request, defaultEnv);
+    expect(response.status).toBe(200);
+
+    const emittedLogs = logSpy.mock.calls.map(([call]) => JSON.parse(call as string));
+    const events = emittedLogs.map((entry) => entry.event);
+
+    expect(events).toContain('REQUEST_START');
+    expect(events).toContain('SOLVE_START');
+    expect(events).toContain('INFERENCE_DISPATCH');
+    expect(events).toContain('INFERENCE_RESPONSE');
+    expect(events).toContain('PARSE_SUCCESS');
+    expect(events).toContain('REQUEST_COMPLETE');
+
+    for (const entry of emittedLogs) {
+      expect(entry.requestId).toBe('ray-test-lifecycle');
+      expect(entry.timestamp).toBeDefined();
+      expect(entry.message).toBeDefined();
+      expect(typeof entry.message).toBe('string');
+      expect(entry.message).toContain(`[${entry.event}]`);
+    }
   });
 });

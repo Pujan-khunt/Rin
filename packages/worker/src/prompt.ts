@@ -8,6 +8,7 @@ export interface ChatCompletionPayload {
   response_format: { type: 'json_object' };
   temperature: number;
   max_tokens: number;
+  thinking?: { type: 'enabled' | 'disabled' };
 }
 
 /**
@@ -34,11 +35,12 @@ export function buildChatPayload(quiz: QuizInput): ChatCompletionPayload {
       },
       {
         role: 'user',
-        content: `Question: ${quiz.question}\n\nOptions:\n${optionsText}`,
+        content: `Question: ${quiz.question}\n\nOptions:\n${optionsText}\n\nRespond with a JSON object containing "choice" and "reasoning".`,
       },
     ],
     response_format: { type: 'json_object' },
     temperature: 0,
     max_tokens: 1024,
+    thinking: { type: 'disabled' },
   };
 }
