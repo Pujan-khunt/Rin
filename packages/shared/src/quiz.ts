@@ -34,10 +34,4 @@ export interface QuizInput {
    * The list of available choices for the question.
    */
   options: QuizChoice[];
-
-  /**
-   * Optional inference model identifier (e.g. "deepseek/deepseek-v4-flash" or "google/gemini-2.5-flash").
-   * Defaults to "deepseek/deepseek-v4-flash" on the worker if omitted.
-   */
-  model?: string;
 }
