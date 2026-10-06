@@ -1,4 +1,5 @@
 import type { QuizInput } from '@rin/shared';
+import { DEEPSEEK_MODEL_ID } from '@rin/shared';
 import { QUIZ_SOLVER_SYSTEM_PROMPT } from '@/constants';
 
 export interface ChatCompletionPayload {
@@ -19,13 +20,13 @@ export function formatOptionsText(options: QuizInput['options']): string {
 }
 
 /**
- * Constructs the standardized OpenRouter Chat Completions request payload.
+ * Constructs the standardized DeepSeek Chat Completions request payload.
  */
-export function buildChatPayload(quiz: QuizInput, model: string): ChatCompletionPayload {
+export function buildChatPayload(quiz: QuizInput): ChatCompletionPayload {
   const optionsText = formatOptionsText(quiz.options);
 
   return {
-    model,
+    model: DEEPSEEK_MODEL_ID,
     messages: [
       {
         role: 'system',

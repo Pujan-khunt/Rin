@@ -1,5 +1,5 @@
-export const OPENROUTER_CHAT_URL = 'https://openrouter.ai/api/v1/chat/completions';
-export const OPENROUTER_TIMEOUT_MS = 10000;
+export const DEEPSEEK_API_URL = 'https://api.deepseek.com/chat/completions';
+export const DEEPSEEK_TIMEOUT_MS = 10000;
 
 export const QUIZ_SOLVER_SYSTEM_PROMPT =
   'You are an expert quiz solver. You will receive a multiple-choice question from a technical course (topics include C++, DSA, system design, databases, finance, etc.).\n\n' +

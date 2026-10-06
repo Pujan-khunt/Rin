@@ -1,24 +1,32 @@
-import { OPENROUTER_CHAT_URL, OPENROUTER_TIMEOUT_MS } from '@/constants';
+import { DEEPSEEK_API_URL, DEEPSEEK_TIMEOUT_MS } from '@/constants';
 import type { ChatCompletionPayload } from '@/prompt';
 
 export interface InferenceClient {
   complete(payload: ChatCompletionPayload, apiKey: string): Promise<string>;
 }
 
-export class OpenRouterTimeoutError extends Error {
+export class DeepSeekTimeoutError extends Error {
   constructor(timeoutMs: number) {
-    super(`OpenRouter request timed out after ${timeoutMs}ms`);
-    this.name = 'OpenRouterTimeoutError';
+    super(`DeepSeek request timed out after ${timeoutMs}ms`);
+    this.name = 'DeepSeekTimeoutError';
   }
 }
 
+interface DeepSeekCompletionResponse {
+  choices?: Array<{
+    message?: {
+      content?: string;
+    };
+  }>;
+}
+
 /**
- * HTTP client communicating with OpenRouter /v1/chat/completions.
+ * HTTP client communicating with official DeepSeek /chat/completions.
  */
-export class OpenRouterClient implements InferenceClient {
+export class DeepSeekClient implements InferenceClient {
   constructor(
-    private readonly endpoint: string = OPENROUTER_CHAT_URL,
-    private readonly timeoutMs: number = OPENROUTER_TIMEOUT_MS
+    private readonly endpoint: string = DEEPSEEK_API_URL,
+    private readonly timeoutMs: number = DEEPSEEK_TIMEOUT_MS
   ) {}
 
   async complete(payload: ChatCompletionPayload, apiKey: string): Promise<string> {
@@ -36,14 +44,16 @@ export class OpenRouterClient implements InferenceClient {
       });
 
       if (!res.ok) {
-        throw new Error(`OpenRouter Chat API error: ${res.status}`);
+        const errorBody = typeof res.text === 'function' ? await res.text().catch(() => '') : '';
+        const detail = errorBody.trim() ? `: ${errorBody.trim()}` : '';
+        throw new Error(`DeepSeek API error: ${res.status}${detail}`);
       }
 
-      const data = (await res.json()) as any;
+      const data = (await res.json()) as DeepSeekCompletionResponse;
       return data.choices?.[0]?.message?.content ?? '';
     } catch (err) {
       if (controller.signal.aborted) {
-        throw new OpenRouterTimeoutError(this.timeoutMs);
+        throw new DeepSeekTimeoutError(this.timeoutMs);
       }
       throw err;
     } finally {
