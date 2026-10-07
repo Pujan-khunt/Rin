@@ -43,14 +43,30 @@ describe('ConfigStore', () => {
       expect(store.get()).toEqual(DEFAULT_CONFIG);
     });
 
+    it('initializes with default solverMode as fast', () => {
+      const store = new ConfigStore();
+      expect(store.get().solverMode).toBe('fast');
+    });
+
+    it('persists and loads solverMode updates', async () => {
+      const store = new ConfigStore();
+      await store.save({ enabled: true, actorMode: 'assisted', solverMode: 'reasoning' });
+      expect(store.get().solverMode).toBe('reasoning');
+
+      const loaded = await store.load();
+      expect(loaded.solverMode).toBe('reasoning');
+    });
+
     it('can be initialized with custom initial config', () => {
       const customStore = new ConfigStore({
         enabled: false,
         actorMode: 'auto',
+        solverMode: 'fast',
       });
       expect(customStore.get()).toEqual({
         enabled: false,
         actorMode: 'auto',
+        solverMode: 'fast',
       });
     });
   });
@@ -76,16 +92,30 @@ describe('ConfigStore', () => {
       });
     });
 
+    it('loads missing solverMode as fast from defaults when older storage is present', async () => {
+      mockStorage['rinConfig'] = {
+        enabled: true,
+        actorMode: 'auto',
+      };
+      const config = await store.load();
+
+      expect(config.solverMode).toBe('fast');
+      expect(config.actorMode).toBe('auto');
+      expect(store.get().solverMode).toBe('fast');
+    });
+
     it('loads fully specified config from storage', async () => {
       mockStorage['rinConfig'] = {
         enabled: false,
         actorMode: 'auto',
+        solverMode: 'fast',
       };
       const config = await store.load();
 
       expect(config).toEqual({
         enabled: false,
         actorMode: 'auto',
+        solverMode: 'fast',
       });
       expect(store.get()).toEqual(config);
     });
@@ -104,6 +134,7 @@ describe('ConfigStore', () => {
       const newConfig = {
         enabled: false,
         actorMode: 'auto' as const,
+        solverMode: 'fast' as const,
       };
 
       await store.save(newConfig);
@@ -124,6 +155,7 @@ describe('ConfigStore', () => {
       const failingConfig = {
         enabled: false,
         actorMode: 'auto' as const,
+        solverMode: 'fast' as const,
       };
 
       await expect(store.save(failingConfig)).rejects.toThrow('Disk write error: quota exceeded');
@@ -132,6 +164,7 @@ describe('ConfigStore', () => {
       expect(store.get()).toEqual(initialConfig);
       expect(store.get().enabled).toBe(initialConfig.enabled);
       expect(store.get().actorMode).toBe(initialConfig.actorMode);
+      expect(store.get().solverMode).toBe(initialConfig.solverMode);
     });
   });
 

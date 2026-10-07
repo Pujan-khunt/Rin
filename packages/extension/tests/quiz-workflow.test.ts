@@ -48,7 +48,7 @@ describe('QuizWorkflow', () => {
   it('skips processing if Rin is disabled in config', async () => {
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: false },
+      { actorMode: 'assisted', enabled: false, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -63,7 +63,7 @@ describe('QuizWorkflow', () => {
   it('skips processing if quiz is already answered', async () => {
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -79,7 +79,7 @@ describe('QuizWorkflow', () => {
   it('skips solving if a choice was selected after extraction but before processing', async () => {
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -108,7 +108,7 @@ describe('QuizWorkflow', () => {
       const actor: Actor = { ...mockActor, mode };
       const workflow = new QuizWorkflow(
         actor,
-        { actorMode: mode, enabled: true },
+        { actorMode: mode, enabled: true, solverMode: 'fast' },
         mockSolver,
         mockOnQuizProcessed
       );
@@ -136,7 +136,7 @@ describe('QuizWorkflow', () => {
     }));
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -159,7 +159,7 @@ describe('QuizWorkflow', () => {
     document.body.appendChild(otherChoice);
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -173,7 +173,7 @@ describe('QuizWorkflow', () => {
   it('sends solve request with mapped options, invokes actor and onQuizProcessed on QUIZ_SOLVED', async () => {
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -188,6 +188,7 @@ describe('QuizWorkflow', () => {
           { label: 'A', text: 'Option 1' },
           { label: 'B', text: 'Option 2' },
         ],
+        mode: 'fast',
       },
     });
     expect(mockActor.act).toHaveBeenCalledWith({
@@ -197,6 +198,25 @@ describe('QuizWorkflow', () => {
     expect(mockOnQuizProcessed).toHaveBeenCalledWith(mockQuiz);
   });
 
+  it('passes configured solverMode in SOLVE_QUIZ payload', async () => {
+    const workflow = new QuizWorkflow(
+      mockActor,
+      { actorMode: 'assisted', enabled: true, solverMode: 'reasoning' },
+      mockSolver,
+      mockOnQuizProcessed
+    );
+
+    await workflow.process(mockQuiz);
+
+    expect(mockSolver).toHaveBeenCalledWith({
+      type: 'SOLVE_QUIZ',
+      payload: expect.objectContaining({
+        question: mockQuiz.question,
+        mode: 'reasoning',
+      }),
+    });
+  });
+
   it('handles background solver ERROR response without crashing or calling actor', async () => {
     mockSolver.mockResolvedValue({
       type: 'ERROR',
@@ -204,7 +224,7 @@ describe('QuizWorkflow', () => {
     });
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -221,7 +241,7 @@ describe('QuizWorkflow', () => {
     } as any);
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -236,7 +256,7 @@ describe('QuizWorkflow', () => {
     mockSolver.mockRejectedValue(new Error('Network offline'));
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -255,7 +275,7 @@ describe('QuizWorkflow', () => {
 
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver
     );
     workflow.setActor(newActor);
@@ -267,19 +287,19 @@ describe('QuizWorkflow', () => {
   it('cleans up actor when setConfig changes enabled to false', () => {
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver
     );
-    workflow.setConfig({ actorMode: 'assisted', enabled: false });
+    workflow.setConfig({ actorMode: 'assisted', enabled: false, solverMode: 'fast' });
 
     expect(mockActor.cleanup).toHaveBeenCalled();
-    expect(workflow.getConfig()).toEqual({ actorMode: 'assisted', enabled: false });
+    expect(workflow.getConfig()).toEqual({ actorMode: 'assisted', enabled: false, solverMode: 'fast' });
   });
 
   it('cleanup delegates to current actor cleanup', () => {
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver
     );
     workflow.cleanup();
@@ -290,7 +310,7 @@ describe('QuizWorkflow', () => {
   it('does not act if quiz container was detached while solver was in flight', async () => {
     const workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );
@@ -309,7 +329,7 @@ describe('QuizWorkflow', () => {
   it('does not act if extension was disabled while solver was in flight', async () => {
     let workflow: QuizWorkflow;
     mockSolver.mockImplementation(async () => {
-      workflow.setConfig({ actorMode: 'assisted', enabled: false });
+      workflow.setConfig({ actorMode: 'assisted', enabled: false, solverMode: 'fast' });
       return {
         type: 'QUIZ_SOLVED',
         payload: {
@@ -323,7 +343,7 @@ describe('QuizWorkflow', () => {
 
     workflow = new QuizWorkflow(
       mockActor,
-      { actorMode: 'assisted', enabled: true },
+      { actorMode: 'assisted', enabled: true, solverMode: 'fast' },
       mockSolver,
       mockOnQuizProcessed
     );

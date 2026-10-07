@@ -39,6 +39,7 @@ export async function solve(
     {
       questionPreview: quiz.question.slice(0, 60),
       optionsCount: quiz.options.length,
+      mode: quiz.mode ?? 'fast',
     },
     requestId
   );

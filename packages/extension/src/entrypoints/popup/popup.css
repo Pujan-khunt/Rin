@@ -38,6 +38,12 @@ body {
 }
 input:checked + .slider { background-color: #a855f7; }
 input:checked + .slider:before { transform: translateX(16px); }
+.mode-section {
+  margin-bottom: 16px;
+}
+.mode-section:last-of-type {
+  margin-bottom: 0;
+}
 .section-label {
   font-size: 11px;
   text-transform: uppercase;

@@ -67,6 +67,7 @@ export class QuizWorkflow {
             label: o.label,
             text: o.text,
           })),
+          mode: this.config.solverMode,
         },
       });
 

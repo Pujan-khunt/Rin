@@ -215,7 +215,7 @@ describe('Drona Content Script Entrypoint', () => {
   });
 
   it.each([false, true])('rechecks an existing quiz on enablement (answered: %s)', async (answered) => {
-    const disabledConfig = { actorMode: 'assisted' as const, enabled: false };
+    const disabledConfig = { actorMode: 'assisted' as const, enabled: false, solverMode: 'fast' as const };
     vi.spyOn(configStore, 'load').mockResolvedValue(disabledConfig);
     let onConfigChange!: ConfigChangeListener;
     vi.spyOn(configStore, 'subscribe').mockImplementation((listener) => {
@@ -247,7 +247,7 @@ describe('Drona Content Script Entrypoint', () => {
     onEnter(container);
     expect(solveSpy).not.toHaveBeenCalled();
 
-    const enabledConfig = { actorMode: 'auto' as const, enabled: true };
+    const enabledConfig = { actorMode: 'auto' as const, enabled: true, solverMode: 'fast' as const };
     onConfigChange(enabledConfig, disabledConfig);
     await vi.waitFor(() => {
       expect(solveSpy).toHaveBeenCalledTimes(answered ? 0 : 1);
@@ -262,7 +262,7 @@ describe('Drona Content Script Entrypoint', () => {
   });
 
   it('can enable Rin before entering a meeting', async () => {
-    const disabledConfig = { actorMode: 'assisted' as const, enabled: false };
+    const disabledConfig = { actorMode: 'assisted' as const, enabled: false, solverMode: 'fast' as const };
     vi.spyOn(configStore, 'load').mockResolvedValue(disabledConfig);
     let onConfigChange!: ConfigChangeListener;
     vi.spyOn(configStore, 'subscribe').mockImplementation((listener) => {
@@ -293,6 +293,7 @@ describe('Drona Content Script Entrypoint', () => {
     vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: true,
+      solverMode: 'fast',
     });
 
     const actSpy = vi.spyOn(HudActor.prototype, 'act').mockResolvedValue();
@@ -346,6 +347,7 @@ describe('Drona Content Script Entrypoint', () => {
           { label: 'A', text: 'Option A' },
           { label: 'B', text: 'Option B' },
         ],
+        mode: 'fast',
       },
     });
     expect(actSpy).toHaveBeenCalledWith({
@@ -376,6 +378,7 @@ describe('Drona Content Script Entrypoint', () => {
     vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: false,
+      solverMode: 'fast',
     });
 
     await dronaEntry.main(mockCtx as any);
@@ -408,6 +411,7 @@ describe('Drona Content Script Entrypoint', () => {
     vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'auto',
       enabled: true,
+      solverMode: 'fast',
     });
 
     const clickActSpy = vi.spyOn(ClickActor.prototype, 'act').mockResolvedValue();
@@ -460,6 +464,7 @@ describe('Drona Content Script Entrypoint', () => {
     vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: true,
+      solverMode: 'fast',
     });
 
     let storageListener: any;
@@ -554,6 +559,7 @@ describe('Drona Content Script Entrypoint', () => {
     vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: true,
+      solverMode: 'fast',
     });
 
     await dronaEntry.main(mockCtx as any);
