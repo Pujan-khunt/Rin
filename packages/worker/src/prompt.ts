@@ -1,6 +1,6 @@
-import type { QuizInput } from '@rin/shared';
+import type { QuizInput, SolverMode } from '@rin/shared';
 import { DEEPSEEK_MODEL_ID } from '@rin/shared';
-import { QUIZ_SOLVER_SYSTEM_PROMPT } from '@/constants';
+import { FAST_MODE_SYSTEM_PROMPT, REASONING_MODE_SYSTEM_PROMPT } from '@/constants';
 
 export interface ChatCompletionPayload {
   model: string;
@@ -10,6 +10,28 @@ export interface ChatCompletionPayload {
   max_tokens: number;
   thinking?: { type: 'enabled' | 'disabled' };
 }
+
+interface ModeSettings {
+  systemPrompt: string;
+  promptSuffix: string;
+  maxTokens: number;
+  thinking: 'enabled' | 'disabled';
+}
+
+const MODE_CONFIGS: Record<SolverMode, ModeSettings> = {
+  fast: {
+    systemPrompt: FAST_MODE_SYSTEM_PROMPT,
+    promptSuffix: 'Respond with a JSON object containing "choice".',
+    maxTokens: 128,
+    thinking: 'disabled',
+  },
+  reasoning: {
+    systemPrompt: REASONING_MODE_SYSTEM_PROMPT,
+    promptSuffix: 'Respond with a JSON object containing "choice" and "reasoning".',
+    maxTokens: 4096,
+    thinking: 'enabled',
+  },
+};
 
 /**
  * Formats question choices into a readable text list:
@@ -24,6 +46,8 @@ export function formatOptionsText(options: QuizInput['options']): string {
  * Constructs the standardized DeepSeek Chat Completions request payload.
  */
 export function buildChatPayload(quiz: QuizInput): ChatCompletionPayload {
+  const mode: SolverMode = quiz.mode ?? 'fast';
+  const config = MODE_CONFIGS[mode] ?? MODE_CONFIGS.fast;
   const optionsText = formatOptionsText(quiz.options);
 
   return {
@@ -31,16 +55,17 @@ export function buildChatPayload(quiz: QuizInput): ChatCompletionPayload {
     messages: [
       {
         role: 'system',
-        content: QUIZ_SOLVER_SYSTEM_PROMPT,
+        content: config.systemPrompt,
       },
       {
         role: 'user',
-        content: `Question: ${quiz.question}\n\nOptions:\n${optionsText}\n\nRespond with a JSON object containing "choice" and "reasoning".`,
+        content: `Question: ${quiz.question}\n\nOptions:\n${optionsText}\n\n${config.promptSuffix}`,
       },
     ],
     response_format: { type: 'json_object' },
     temperature: 0,
-    max_tokens: 1024,
-    thinking: { type: 'disabled' },
+    max_tokens: config.maxTokens,
+    thinking: { type: config.thinking },
   };
 }
+

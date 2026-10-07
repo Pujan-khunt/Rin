@@ -143,7 +143,7 @@ describe('DeepSeek request timeout and client', () => {
     expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('INFERENCE_EMPTY_CONTENT'));
   });
 
-  it('buildChatPayload disables thinking mode and configures json_object format', () => {
+  it('buildChatPayload configures fast mode by default', () => {
     const chatPayload = buildChatPayload({
       question: 'Sample question?',
       options: [
@@ -154,6 +154,25 @@ describe('DeepSeek request timeout and client', () => {
 
     expect(chatPayload.thinking).toEqual({ type: 'disabled' });
     expect(chatPayload.response_format).toEqual({ type: 'json_object' });
-    expect(chatPayload.max_tokens).toBe(1024);
+    expect(chatPayload.max_tokens).toBe(128);
+    expect(chatPayload.messages[0]!.content).toContain('{"choice": "<correct option letter>"}');
+    expect(chatPayload.messages[1]!.content).toContain('Respond with a JSON object containing "choice".');
+  });
+
+  it('buildChatPayload configures reasoning mode when requested', () => {
+    const chatPayload = buildChatPayload({
+      question: 'Sample question?',
+      options: [
+        { label: 'A', text: 'Opt 1' },
+        { label: 'B', text: 'Opt 2' },
+      ],
+      mode: 'reasoning',
+    });
+
+    expect(chatPayload.thinking).toEqual({ type: 'enabled' });
+    expect(chatPayload.response_format).toEqual({ type: 'json_object' });
+    expect(chatPayload.max_tokens).toBe(4096);
+    expect(chatPayload.messages[0]!.content).toContain('"reasoning": "<your brief step-by-step analysis>"');
+    expect(chatPayload.messages[1]!.content).toContain('Respond with a JSON object containing "choice" and "reasoning".');
   });
 });

@@ -423,4 +423,32 @@ describe('Cloudflare Worker Edge Proxy (DeepSeek Chat)', () => {
       expect(entry.message).toContain(`[${entry.event}]`);
     }
   });
+
+  it('processes POST /solve with reasoning mode payload', async () => {
+    const request = new Request('http://localhost:8787/solve', {
+      method: 'POST',
+      headers: {
+        ...authHeaders,
+        Origin: 'chrome-extension://abcdefghijklmnopabcdefghijklmnop',
+      },
+      body: JSON.stringify({
+        question: 'What is 2+2?',
+        options: [
+          { label: 'A', text: '3' },
+          { label: 'B', text: '4' },
+        ],
+        mode: 'reasoning',
+      }),
+    });
+
+    const response = await worker.fetch(request, defaultEnv);
+    expect(response.status).toBe(200);
+    expect(global.fetch).toHaveBeenCalledWith(
+      DEEPSEEK_API_URL,
+      expect.objectContaining({
+        body: expect.stringContaining('"max_tokens":4096'),
+      })
+    );
+  });
 });
+
