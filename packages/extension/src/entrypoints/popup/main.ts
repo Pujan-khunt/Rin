@@ -17,8 +17,8 @@ const DESCS: Record<ActorMode, string> = {
 };
 
 const SOLVER_DESCS: Record<SolverMode, string> = {
-  fast: 'Direct, instant answer generation without chain-of-thought (~200ms).',
-  reasoning: 'Deep chain-of-thought reasoning before answering (~2–4s). Best for complex logic.',
+  fast: 'Direct, instant answer generation without chain-of-thought.',
+  reasoning: 'Deep chain-of-thought reasoning before answering. Best for complex logic.',
 };
 
 async function init() {

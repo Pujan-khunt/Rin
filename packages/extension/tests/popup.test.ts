@@ -23,7 +23,7 @@ describe('Popup UI Interaction', () => {
           <button id="mode-assisted" class="mode-btn active">Assisted (HUD)</button>
           <button id="mode-auto" class="mode-btn">Auto-Click</button>
         </div>
-        <p id="mode-desc" class="mode-desc">Softly tints the recommended choice in light purple (#e8d5f5). You verify and submit.</p>
+        <p id="mode-desc" class="mode-desc">Softly tints the recommended choice in light purple. You verify and submit.</p>
       </div>
       <div class="mode-section">
         <label class="section-label">Solver Mode</label>
@@ -31,7 +31,7 @@ describe('Popup UI Interaction', () => {
           <button id="solver-fast" class="mode-btn active">Fast</button>
           <button id="solver-reasoning" class="mode-btn">Reasoning</button>
         </div>
-        <p id="solver-desc" class="mode-desc">Direct, instant answer generation without chain-of-thought (~200ms).</p>
+        <p id="solver-desc" class="mode-desc">Direct, instant answer generation without chain-of-thought.</p>
       </div>
     </div>
   `;
@@ -100,7 +100,7 @@ describe('Popup UI Interaction', () => {
 
     expect(btnAuto.classList.contains('active')).toBe(true);
     expect(btnAssisted.classList.contains('active')).toBe(false);
-    expect(modeDesc.textContent).toContain('Clicks the recommended choice after solving');
+    expect(modeDesc.textContent).toContain('Automatically clicks the recommended choice after solving');
     expect(saveConfigSpy).toHaveBeenCalledWith(
       expect.objectContaining({
         actorMode: 'auto',
