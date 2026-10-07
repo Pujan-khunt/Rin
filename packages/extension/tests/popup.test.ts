@@ -25,6 +25,14 @@ describe('Popup UI Interaction', () => {
         </div>
         <p id="mode-desc" class="mode-desc">Softly tints the recommended choice in light purple (#e8d5f5). You verify and submit.</p>
       </div>
+      <div class="mode-section">
+        <label class="section-label">Solver Mode</label>
+        <div class="mode-buttons">
+          <button id="solver-fast" class="mode-btn active">Fast</button>
+          <button id="solver-reasoning" class="mode-btn">Reasoning</button>
+        </div>
+        <p id="solver-desc" class="mode-desc">Direct, instant answer generation without chain-of-thought (~200ms).</p>
+      </div>
     </div>
   `;
 
@@ -54,12 +62,18 @@ describe('Popup UI Interaction', () => {
     const btnAssisted = document.getElementById('mode-assisted') as HTMLButtonElement;
     const btnAuto = document.getElementById('mode-auto') as HTMLButtonElement;
     const modeDesc = document.getElementById('mode-desc') as HTMLParagraphElement;
+    const btnFast = document.getElementById('solver-fast') as HTMLButtonElement;
+    const btnReasoning = document.getElementById('solver-reasoning') as HTMLButtonElement;
+    const solverDesc = document.getElementById('solver-desc') as HTMLParagraphElement;
 
     expect(loadConfigSpy).toHaveBeenCalled();
     expect(enabledToggle.checked).toBe(true);
     expect(btnAssisted.classList.contains('active')).toBe(true);
     expect(btnAuto.classList.contains('active')).toBe(false);
     expect(modeDesc.textContent).toContain('Softly tints');
+    expect(btnFast.classList.contains('active')).toBe(true);
+    expect(btnReasoning.classList.contains('active')).toBe(false);
+    expect(solverDesc.textContent).toContain('Direct, instant');
   });
 
   it('updates state and calls saveConfig on toggle change', async () => {
@@ -104,6 +118,45 @@ describe('Popup UI Interaction', () => {
       expect.objectContaining({
         actorMode: 'assisted',
       })
+    );
+  });
+
+  it('switches to reasoning solver mode and updates description and active class on button click', async () => {
+    const btnFast = document.getElementById('solver-fast') as HTMLButtonElement;
+    const btnReasoning = document.getElementById('solver-reasoning') as HTMLButtonElement;
+    const solverDesc = document.getElementById('solver-desc') as HTMLParagraphElement;
+
+    expect(btnFast.classList.contains('active')).toBe(true);
+    expect(btnReasoning.classList.contains('active')).toBe(false);
+
+    btnReasoning.click();
+    await Promise.resolve();
+
+    expect(btnReasoning.classList.contains('active')).toBe(true);
+    expect(btnFast.classList.contains('active')).toBe(false);
+    expect(solverDesc.textContent).toContain('Deep chain-of-thought');
+    expect(saveConfigSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ solverMode: 'reasoning' })
+    );
+  });
+
+  it('switches back to fast solver mode on button click', async () => {
+    const btnFast = document.getElementById('solver-fast') as HTMLButtonElement;
+    const btnReasoning = document.getElementById('solver-reasoning') as HTMLButtonElement;
+    const solverDesc = document.getElementById('solver-desc') as HTMLParagraphElement;
+
+    btnReasoning.click();
+    await Promise.resolve();
+    expect(btnReasoning.classList.contains('active')).toBe(true);
+
+    btnFast.click();
+    await Promise.resolve();
+
+    expect(btnFast.classList.contains('active')).toBe(true);
+    expect(btnReasoning.classList.contains('active')).toBe(false);
+    expect(solverDesc.textContent).toContain('Direct, instant');
+    expect(saveConfigSpy).toHaveBeenCalledWith(
+      expect.objectContaining({ solverMode: 'fast' })
     );
   });
 });
