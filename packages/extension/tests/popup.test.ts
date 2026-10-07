@@ -40,6 +40,7 @@ describe('Popup UI Interaction', () => {
     loadConfigSpy = vi.spyOn(configStore, 'load').mockResolvedValue({
       actorMode: 'assisted',
       enabled: true,
+      solverMode: 'fast',
     });
     saveConfigSpy = vi.spyOn(configStore, 'save').mockResolvedValue();
 
