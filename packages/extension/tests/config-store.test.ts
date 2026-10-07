@@ -92,6 +92,18 @@ describe('ConfigStore', () => {
       });
     });
 
+    it('loads missing solverMode as fast from defaults when older storage is present', async () => {
+      mockStorage['rinConfig'] = {
+        enabled: true,
+        actorMode: 'auto',
+      };
+      const config = await store.load();
+
+      expect(config.solverMode).toBe('fast');
+      expect(config.actorMode).toBe('auto');
+      expect(store.get().solverMode).toBe('fast');
+    });
+
     it('loads fully specified config from storage', async () => {
       mockStorage['rinConfig'] = {
         enabled: false,
