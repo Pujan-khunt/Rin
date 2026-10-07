@@ -19,6 +19,13 @@ export interface QuizChoice {
 }
 
 /**
+ * Operational mode controlling solver speed vs reasoning depth.
+ * - 'fast': Low-latency direct answering (e.g. deepseek-chat).
+ * - 'reasoning': Deliberate step-by-step thinking (e.g. deepseek-reasoner).
+ */
+export type SolverMode = 'fast' | 'reasoning';
+
+/**
  * Normalized network payload transmitted to the solver proxy (`POST /solve`).
  *
  * Contains the extracted problem statement and list of choices required by the
@@ -34,4 +41,10 @@ export interface QuizInput {
    * The list of available choices for the question.
    */
   options: QuizChoice[];
+
+  /**
+   * Optional operational mode specifying whether to prioritize latency ('fast')
+   * or deep analytical deliberation ('reasoning'). Defaults to 'fast' if omitted.
+   */
+  mode?: SolverMode;
 }

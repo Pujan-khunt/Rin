@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isAllowedOrigin } from '@/http';
+import { isAllowedOrigin, validateQuizInput } from '@/http';
 
 describe('Origin validation', () => {
   it.each([
@@ -41,5 +41,35 @@ describe('Origin validation', () => {
     'moz-extension://e7f53a99-4d92-4f3d-82d1-039c647b5921?query=1',
   ])('rejects an untrusted or malformed origin: %s', (origin) => {
     expect(isAllowedOrigin(origin)).toBe(false);
+  });
+});
+
+describe('validateQuizInput', () => {
+  it('validates QuizInput with valid solver modes', () => {
+    expect(
+      validateQuizInput({
+        question: 'What is 1+1?',
+        options: [{ label: 'A', text: '2' }],
+        mode: 'fast',
+      })
+    ).toBe(true);
+
+    expect(
+      validateQuizInput({
+        question: 'What is 1+1?',
+        options: [{ label: 'A', text: '2' }],
+        mode: 'reasoning',
+      })
+    ).toBe(true);
+  });
+
+  it('rejects QuizInput with invalid solver mode', () => {
+    expect(
+      validateQuizInput({
+        question: 'What is 1+1?',
+        options: [{ label: 'A', text: '2' }],
+        mode: 'super-fast',
+      })
+    ).toBe(false);
   });
 });

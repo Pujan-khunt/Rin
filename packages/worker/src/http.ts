@@ -111,17 +111,29 @@ export function authenticateRequest(request: Request, env: Env): Response | null
 }
 
 /**
- * Checks for a nonblank string question and a nonempty options array.
- * Individual options are not validated here.
+ * Validates that an unknown input payload conforms to the QuizInput contract.
+ * Checks for a nonblank question, nonempty options array, and valid optional mode.
  */
 export function validateQuizInput(input: unknown): input is QuizInput {
   if (!input || typeof input !== 'object') return false;
   const candidate = input as Record<string, unknown>;
 
-  return (
-    typeof candidate.question === 'string' &&
-    candidate.question.trim().length > 0 &&
-    Array.isArray(candidate.options) &&
-    candidate.options.length > 0
-  );
+  if (
+    typeof candidate.question !== 'string' ||
+    candidate.question.trim().length === 0 ||
+    !Array.isArray(candidate.options) ||
+    candidate.options.length === 0
+  ) {
+    return false;
+  }
+
+  if (
+    candidate.mode !== undefined &&
+    candidate.mode !== 'fast' &&
+    candidate.mode !== 'reasoning'
+  ) {
+    return false;
+  }
+
+  return true;
 }
