@@ -2,10 +2,15 @@
 
 Rin is a Manifest V3 browser extension that detects multiple-choice quizzes in Scaler's Drona classrooms, requests an answer through a Cloudflare Worker and DeepSeek API, and highlights or clicks the recommended option.
 
+### Execution modes
 - **Assisted mode (default):** adds a light purple background (`#e8d5f5`) and purple outline to the recommended choice. The student selects the answer.
 - **Auto mode:** dispatches synthetic pointer and mouse events to the recommended choice. Submission depends on Scaler's event handling; Rin does not confirm that the platform accepted the answer.
 
-Rin starts enabled. The popup controls enablement and execution mode, and storage changes update content scripts already running in open tabs. Enabling Rin during an existing quiz immediately rechecks it; answered quizzes are skipped.
+### Solver modes
+- **Fast mode (default):** low-latency direct answering using DeepSeek (`deepseek-flash`) with thinking mode disabled and a 128-token budget.
+- **Reasoning mode:** deep analytical reasoning using `deepseek-flash` with thinking mode enabled and a 4096-token deliberation budget.
+
+Rin starts enabled. The popup controls enablement, execution mode, and solver mode. Storage changes update content scripts already running in open tabs in real-time. Enabling Rin during an existing quiz immediately rechecks it; answered quizzes are skipped.
 
 ## How it works
 
@@ -25,7 +30,7 @@ The content script runs at `document_idle` on Scaler pages, including matching f
 
 Quiz extraction uses Scaler-specific CSS selectors to read question text and labeled options from `div.m-quiz`. It preserves question `<pre>` formatting and keeps option element references for highlighting or clicking. The observer suppresses duplicate emissions with the same quiz element and question text.
 
-The background sends the question and options to `https://rin-worker.pujankhunt.me/solve`. The worker requests JSON containing a choice from the official DeepSeek API using `deepseek-flash`, matches the returned label to an option, and returns its index, label, model ID, and worker-side solver duration. The worker aborts its DeepSeek request after ten seconds, including response-body reading, and returns HTTP 504 on timeout. The extension aborts its worker request after twelve seconds.
+The background sends the question, options, and configured solver mode (`fast` or `reasoning`) to `https://rin-worker.pujankhunt.me/solve`. The worker configures mode-specific system prompts, token limits, and thinking parameters for the official DeepSeek API (`deepseek-flash`), matches the returned label to an option, and returns its index, label, model ID, and worker-side solver duration. The worker aborts its DeepSeek request after ten seconds, including response-body reading, and returns HTTP 504 on timeout. The extension aborts its worker request after twelve seconds.
 
 ## Repository layout
 
@@ -48,7 +53,7 @@ packages/
 │   ├── src/
 │   ├── tests/
 │   └── wrangler.jsonc
-└── shared/src/                 # QuizInput, QuizChoice, SolveResult, model IDs
+└── shared/src/                 # QuizInput, QuizChoice, SolverMode, SolveResult, model IDs
 ```
 
 The repository also includes two captured live-class HTML files, Vitest configuration, and maintained [system](docs/superpowers/specs/2026-09-25-rin-design.md) and [extension](docs/superpowers/specs/2026-10-02-extension-architecture-refactor-design.md) implementation references. The original benchmark CLI and 17-fixture collection were proposals; they are absent from this checkout.
@@ -133,7 +138,7 @@ Deployment uses the `rin-solver` worker and custom domain `rin-worker.pujankhunt
 
 ## Data and authentication
 
-The solver receives question text and option labels/text. DOM element references, raw HTML, and page URLs are not sent in solver requests. The worker sends question text and option labels/text to DeepSeek API (`deepseek-flash`); the model's response is parsed for its choice, and reasoning is not exposed in the extension response. Development snapshots are retained within the storage limits above; manual captures also download a file.
+The solver receives question text, option labels/text, and the configured solver mode (`fast` or `reasoning`). DOM element references, raw HTML, and page URLs are not sent in solver requests. The worker sends question text and option labels/text to DeepSeek API (`deepseek-flash`); the model's response is parsed for its choice, and reasoning is not exposed in the extension response. Development snapshots are retained within the storage limits above; manual captures also download a file.
 
 The extension requests `storage` permission and host permissions for Scaler and the production worker. The worker requires a valid serialized `Origin`, plus the client key. Accepted origins are `chrome-extension://` with a 32-character ID using letters `a` through `p`, `moz-extension://` with a UUID hostname, and HTTP origins whose hostname is exactly `localhost` or `127.0.0.1` (with an optional port). Lookalike hosts, credentials, paths, queries, fragments, and malformed origins are rejected. This validates extension ID format, not a specific extension ID allowlist. There is no application-level rate limiting.
 
@@ -153,7 +158,7 @@ Current behavior to account for:
 - Duplicate suppression ignores option-only changes. A failed solve is not automatically retried for the same quiz element and question.
 - Meeting removal observation is usually shallow on the classroom's immediate parent; removing a more distant ancestor can bypass that observer.
 - Settings are mutable references. Although `save()` replaces its cache only after a successful write, callers such as the popup can mutate that cache beforehand, and the popup does not roll back failed writes.
-- Worker input validation checks the question and a nonempty options array, not individual options or model types. The HTTP handler does not restrict the URL path to `/solve`.
+- Worker input validation checks the question, a nonempty options array, and verifies that the optional `mode` is either `'fast'` or `'reasoning'`. The HTTP handler does not restrict the URL path to `/solve`.
 
 The detailed contracts and error behavior are in the [system implementation reference](docs/superpowers/specs/2026-09-25-rin-design.md).
 

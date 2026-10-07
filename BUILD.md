@@ -44,17 +44,17 @@ This command runs Chrome packaging followed by Firefox packaging. Firefox packag
 
 ## Artifact locations
 
-All paths are relative to the repository root and use the current extension version, `0.2.1`:
+All paths are relative to the repository root and use the current extension version, `0.2.2`:
 
 | Artifact | Path |
 |---|---|
 | Chrome bundle | `packages/extension/.output/chrome-mv3/` |
 | Chrome manifest | `packages/extension/.output/chrome-mv3/manifest.json` |
-| Chrome archive | `packages/extension/.output/rinextension-0.2.1-chrome.zip` |
+| Chrome archive | `packages/extension/.output/rinextension-0.2.2-chrome.zip` |
 | Firefox bundle | `packages/extension/.output/firefox-mv3/` |
 | Firefox manifest | `packages/extension/.output/firefox-mv3/manifest.json` |
-| Firefox archive | `packages/extension/.output/rinextension-0.2.1-firefox.zip` |
-| WXT sources archive | `packages/extension/.output/rinextension-0.2.1-sources.zip` |
+| Firefox archive | `packages/extension/.output/rinextension-0.2.2-firefox.zip` |
+| WXT sources archive | `packages/extension/.output/rinextension-0.2.2-sources.zip` |
 
 Use the actual names printed by WXT if the extension name or version changes.
 

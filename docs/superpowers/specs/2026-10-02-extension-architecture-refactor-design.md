@@ -1,7 +1,8 @@
 # Rin extension — Architecture implementation reference
 
 - **Original refactor design date:** 2026-10-02
-- **Reconciled with source:** 2026-10-04
+- **Reconciled with source:** 2026-10-07
+- **Version:** 0.2.2
 - **Scope:** `packages/extension`
 - **Status:** Current implementation reference, with differences from the proposal recorded below
 
@@ -17,8 +18,8 @@ Paths below are relative to `packages/extension/src/`:
 | `actors/hud.ts` | Save inline styles, highlight a choice, restore on cleanup. |
 | `actors/click.ts` | Five-event synthetic interaction sequence; stateless actor. |
 | `actors/factory.ts` | `ACTOR_STRATEGIES` constructor registry and assisted fallback. |
-| `config/types.ts` | `RinConfig` and old/new configuration listener contract. |
-| `config/defaults.ts` | Enabled assisted mode and default model ID. |
+| `config/types.ts` | `RinConfig` (`enabled`, `actorMode`, `solverMode`) and change listener contract. |
+| `config/defaults.ts` | `DEFAULT_CONFIG` with enabled, assisted mode, and fast solver mode. |
 | `config/store.ts` | Local storage, cached settings, and storage-change subscriptions. |
 | `dom/selectors.ts` | Scaler selectors, including development-only recorded player. |
 | `dom/utils.ts` | Whitespace normalization and self-or-descendant lookup. |
@@ -38,8 +39,8 @@ Paths below are relative to `packages/extension/src/`:
 | `diagnostics/hotkeys.ts` | Manual snapshot shortcuts and listener teardown. |
 | `entrypoints/background.ts` | Solver construction and message route registration. |
 | `entrypoints/drona.content.ts` | Settings, actor/workflow, watchers, diagnostics, teardown. |
-| `entrypoints/popup/main.ts` | Module-level DOM bindings, initialization, settings events. |
-| `entrypoints/popup/index.html` | Enable toggle, mode buttons, development model controls. |
+| `entrypoints/popup/main.ts` | Module-level DOM bindings, initialization, actor/solver mode events. |
+| `entrypoints/popup/index.html` | Enable toggle, actor mode buttons, solver mode buttons. |
 | `entrypoints/popup/popup.css` | Popup styling. |
 | `env.d.ts` | Vite environment types, including injected client key. |
 
@@ -51,7 +52,7 @@ A storage subscription first updates workflow settings, then swaps the actor whe
 
 `QuizObserver.onQuiz` invokes the workflow. `MeetingWatcher.onEnter` starts quiz observation, and `onLeave` stops it and cleans up the actor. Content-context invalidation unsubscribes settings, stops both watchers, cleans up the actor, and removes the development hotkey listener.
 
-The background constructs `WorkerClient` and registers `LOG` and `SOLVE_QUIZ` routes. `SOLVE_QUIZ` loads settings for every request; in development the stored model takes precedence, while production forwards the workflow payload's model. The popup accesses the configuration store directly.
+The background constructs `WorkerClient` and registers `LOG` and `SOLVE_QUIZ` routes. `SOLVE_QUIZ` forwards the received payload (`question`, `options`, `mode`) directly to `WorkerClient.solve(payload)`. The popup accesses the configuration store directly.
 
 ## 3. Lifecycle interfaces
 
@@ -74,17 +75,15 @@ Question parsing preserves internal `<pre>` whitespace after trimming. Other blo
 
 The observer deduplicates by element reference and question text. It observes child-list and text mutations, not attribute changes, and ignores option-only differences when determining whether to emit.
 
-The workflow checks both the extracted answered flag and current quiz selection before sending serializable question/options/model data. The extractor and workflow share `isQuizAnswered()` from `quiz/state.ts`. It catches errors and skips actors for `ERROR` or unexpected responses. After solving it checks current enablement, quiz connectivity, and live selection. Any selected option skips both the actor and processed hook, including a selection matching the recommendation. No asynchronous operation separates the final selection check from the actor call. It does not verify that the question is unchanged, every option is connected, or time remains. Actor mode is resolved through the workflow's current actor at execution time.
+The workflow checks both the extracted answered flag and current quiz selection before sending serializable question/options/mode data. The extractor and workflow share `isQuizAnswered()` from `quiz/state.ts`. It catches errors and skips actors for `ERROR` or unexpected responses. After solving it checks current enablement, quiz connectivity, and live selection. Any selected option skips both the actor and processed hook, including a selection matching the recommendation. No asynchronous operation separates the final selection check from the actor call. It does not verify that the question is unchanged, every option is connected, or time remains. Actor mode is resolved through the workflow's current actor at execution time.
 
 The assisted actor stores and restores full inline CSS on the chosen element and its descendants. The auto actor dispatches pointer/mouse events and performs no acceptance check. Invalid option indexes are ignored by either actor.
 
 ## 5. Configuration and popup
 
-`RinConfig` contains `enabled`, `actorMode`, and optional `model`. Settings persist at `rinConfig` in `browser.storage.local`. `load()` merges stored values over defaults and catches read failures. `subscribe()` publishes both the new configuration and the previous cached value for local `rinConfig` changes.
+`RinConfig` contains `enabled`, `actorMode` (`'assisted' | 'auto'`), and `solverMode` (`'fast' | 'reasoning'`). Settings persist at `rinConfig` in `browser.storage.local`. `load()` merges stored values over defaults (`enabled: true`, `actorMode: 'assisted'`, `solverMode: 'fast'`) and catches read failures. `subscribe()` publishes both the new configuration and the previous cached value for local `rinConfig` changes.
 
-`save()` replaces the cache after an awaited write and rethrows failures, but `load()` and `get()` return mutable references. The procedural popup mutates its loaded configuration before saving and updates mode/model visuals immediately. Consequently failed writes can leave cache and popup state ahead of persisted storage. There is no `PopupView`/`PopupController` class, rollback, or popup storage-change subscription.
-
-Model preset IDs are `deepseek/deepseek-v4-flash` and `google/gemini-2.5-flash`, defined with the default in `packages/shared/src/models.ts`. A custom field trims its input and falls back to DeepSeek when empty. Production removes these controls but retains stored model values in configuration.
+`save()` replaces the cache after an awaited write and rethrows failures, but `load()` and `get()` return mutable references. The procedural popup mutates its loaded configuration before saving and updates actor mode and solver mode button active states and descriptions immediately. Changes persist via `configStore.save()` and propagate across running tabs in real time.
 
 ## 6. Routing and dependency boundaries
 

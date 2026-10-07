@@ -35,7 +35,7 @@ export default defineConfig({
   manifest: {
     name: 'Rin',
     description: 'Rin is an AI assistant for Scaler Quizzes',
-    version: '0.2.1',
+    version: '0.2.2',
     icons: {
       16: '/icon/16.png',
       32: '/icon/32.png',
