@@ -347,6 +347,7 @@ describe('Drona Content Script Entrypoint', () => {
           { label: 'A', text: 'Option A' },
           { label: 'B', text: 'Option B' },
         ],
+        mode: 'fast',
       },
     });
     expect(actSpy).toHaveBeenCalledWith({

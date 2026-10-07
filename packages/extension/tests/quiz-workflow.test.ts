@@ -188,6 +188,7 @@ describe('QuizWorkflow', () => {
           { label: 'A', text: 'Option 1' },
           { label: 'B', text: 'Option 2' },
         ],
+        mode: 'fast',
       },
     });
     expect(mockActor.act).toHaveBeenCalledWith({
@@ -195,6 +196,25 @@ describe('QuizWorkflow', () => {
       result: expect.objectContaining({ chosenLabel: 'A' }),
     });
     expect(mockOnQuizProcessed).toHaveBeenCalledWith(mockQuiz);
+  });
+
+  it('passes configured solverMode in SOLVE_QUIZ payload', async () => {
+    const workflow = new QuizWorkflow(
+      mockActor,
+      { actorMode: 'assisted', enabled: true, solverMode: 'reasoning' },
+      mockSolver,
+      mockOnQuizProcessed
+    );
+
+    await workflow.process(mockQuiz);
+
+    expect(mockSolver).toHaveBeenCalledWith({
+      type: 'SOLVE_QUIZ',
+      payload: expect.objectContaining({
+        question: mockQuiz.question,
+        mode: 'reasoning',
+      }),
+    });
   });
 
   it('handles background solver ERROR response without crashing or calling actor', async () => {

@@ -7,8 +7,8 @@ const btnAuto = document.getElementById('mode-auto') as HTMLButtonElement;
 const modeDesc = document.getElementById('mode-desc') as HTMLParagraphElement;
 
 const DESCS: Record<ActorMode, string> = {
-  assisted: 'Softly tints the recommended choice in light purple (#e8d5f5). You verify and submit.',
-  auto: 'Clicks the recommended choice after solving. Submission depends on Scaler; acceptance is not confirmed.',
+  assisted: 'Softly tints the recommended choice in light purple. You verify and submit.',
+  auto: 'Automatically clicks the recommended choice after solving.',
 };
 
 async function init() {
